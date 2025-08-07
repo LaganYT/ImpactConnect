@@ -25,60 +25,29 @@ interface InvitePageProps {
 }
 
 export default function InvitePage({ params }: InvitePageProps) {
-  try {
-    const { code } = use(params)
-    const [invite, setInvite] = useState<RoomInvite | null>(null)
-    const [room, setRoom] = useState<Room | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [joining, setJoining] = useState(false)
-    const [error, setError] = useState<string | null>(null)
-    const [currentUser, setCurrentUser] = useState<any>(null)
-    const router = useRouter()
+  const { code } = use(params)
+  const [invite, setInvite] = useState<RoomInvite | null>(null)
+  const [room, setRoom] = useState<Room | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [joining, setJoining] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const router = useRouter()
 
-    console.log('InvitePage rendered with code:', code)
-
-    useEffect(() => {
-      console.log('useEffect triggered with code:', code)
-      checkAuthAndLoadInvite()
-    }, [code])
+  useEffect(() => {
+    checkAuthAndLoadInvite()
+  }, [code])
 
   const checkAuthAndLoadInvite = async () => {
     try {
-      console.log('Loading invite for code:', code)
-      
       // Check if user is authenticated
       const { data: { user } } = await (supabase.auth as any).getUser()
       setCurrentUser(user)
-      console.log('Current user:', user?.email)
 
       // Load invite details
       const inviteData = await InviteService.getInvite(code)
-      console.log('Invite data:', inviteData)
-      
       if (!inviteData) {
-        console.log('No invite data found')
-        
-        // Check if any invite with this code exists (even if inactive)
-        const { data: anyInvite } = await supabase
-          .from('room_invites')
-          .select('*')
-          .eq('code', code)
-          .single()
-        
-        if (anyInvite) {
-          if (!anyInvite.is_active) {
-            setError('This invite has been deactivated')
-          } else if (anyInvite.expires_at && new Date(anyInvite.expires_at) < new Date()) {
-            setError('This invite has expired')
-          } else if (anyInvite.max_uses && anyInvite.used_count >= anyInvite.max_uses) {
-            setError('This invite has reached its maximum uses')
-          } else {
-            setError('This invite is no longer valid')
-          }
-        } else {
-          setError('Invalid invite link - invite not found')
-        }
-        
+        setError('Invalid or expired invite link')
         setLoading(false)
         return
       }
@@ -86,22 +55,14 @@ export default function InvitePage({ params }: InvitePageProps) {
       setInvite(inviteData)
 
       // Load room details
-      const { data: roomData, error: roomError } = await supabase
+      const { data: roomData } = await supabase
         .from('rooms')
         .select('*')
         .eq('id', inviteData.room_id)
         .single()
 
-      if (roomError) {
-        console.error('Error loading room:', roomError)
-        setError('Failed to load room details')
-        setLoading(false)
-        return
-      }
-
       if (roomData) {
         setRoom(roomData)
-        console.log('Room data loaded:', roomData.name)
       }
 
       setLoading(false)
@@ -147,7 +108,6 @@ export default function InvitePage({ params }: InvitePageProps) {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading invite...</p>
-          <p className="text-xs text-gray-500 mt-2">Code: {code}</p>
         </div>
       </div>
     )
@@ -286,21 +246,4 @@ export default function InvitePage({ params }: InvitePageProps) {
       </div>
     </div>
   )
-  } catch (error) {
-    console.error('Error in InvitePage component:', error)
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="text-center">
-          <XCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-foreground mb-2">Error</h1>
-          <p className="text-muted-foreground mb-6">
-            Something went wrong loading the invite page
-          </p>
-          <Button onClick={() => window.location.href = '/'}>
-            Go Home
-          </Button>
-        </div>
-      </div>
-    )
-  }
 } 
