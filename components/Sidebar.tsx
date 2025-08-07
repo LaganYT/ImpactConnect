@@ -92,35 +92,15 @@ export default function Sidebar({
     setLoading(true)
 
     try {
-      // Generate id client-side to avoid SELECT after INSERT (blocked by RLS)
-      const roomId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
-        ? crypto.randomUUID()
-        : Math.random().toString(36).slice(2) // fallback (not UUID)
-
-      // Create new room (no select to avoid RLS RETURNING)
-      const { error: roomError } = await supabase
-        .from('rooms')
-        .insert({
-          id: roomId,
-          name: newRoomName,
-          description: newRoomDescription,
-          created_by: user.id,
-          is_private: true,
-          invite_code: Math.random().toString(36).substring(2, 8).toUpperCase()
+      // Use RPC to create room and add creator as admin in one transaction
+      const { data: roomId, error: rpcError } = await supabase
+        .rpc('create_room_with_owner', {
+          p_name: newRoomName,
+          p_description: newRoomDescription,
+          p_is_private: true,
         })
 
-      if (roomError) throw roomError
-
-      // Add creator as admin member (requires RLS policy for creator)
-      const { error: memberError } = await supabase
-        .from('room_members')
-        .insert({
-          room_id: roomId,
-          user_id: user.id,
-          role: 'admin'
-        })
-
-      if (memberError) throw memberError
+      if (rpcError) throw rpcError
 
       // Refresh chat sessions
       window.location.reload()
