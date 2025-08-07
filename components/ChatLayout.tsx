@@ -132,6 +132,15 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
         onSendMessage={async (content: any) => {
           if (!selectedChat) return
           
+          // Fetch sender's canonical username from profile
+          const { data: profile } = await supabase
+            .from('users')
+            .select('username')
+            .eq('id', user.id)
+            .maybeSingle()
+
+          const senderUsername = profile?.username || emailToUsername(user.email) || null
+
           const { error } = await supabase
             .from('messages')
             .insert({
@@ -139,7 +148,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
               sender_id: user.id,
               sender_name: (user.user_metadata as any)?.full_name || null,
               sender_email: user.email || null,
-              sender_username: emailToUsername(user.email),
+              sender_username: senderUsername,
               [selectedChat.type === 'dm' ? 'direct_message_id' : 'room_id']: selectedChat.id
             })
 
