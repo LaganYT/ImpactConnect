@@ -39,10 +39,20 @@ export function Sidebar({ selectedRoom, onRoomSelect, onDirectMessageSelect }: S
   const [roomMembers, setRoomMembers] = useState<RoomMember[]>([])
 
   useEffect(() => {
-    fetchCurrentUser()
-    fetchRooms()
-    fetchUsers()
+    const initializeData = async () => {
+      await fetchCurrentUser()
+      await fetchRooms()
+      await fetchUsers()
+    }
+    initializeData()
   }, [])
+
+  // Refetch rooms when currentUser changes
+  useEffect(() => {
+    if (currentUser) {
+      fetchRooms()
+    }
+  }, [currentUser])
 
   useEffect(() => {
     if (selectedRoom) {
