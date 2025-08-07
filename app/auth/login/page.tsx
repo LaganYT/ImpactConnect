@@ -35,10 +35,11 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
+    const callback = `${window.location.origin}/auth/callback?redirect_to=/chat`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/chat`,
+        redirectTo: callback,
       },
     })
 

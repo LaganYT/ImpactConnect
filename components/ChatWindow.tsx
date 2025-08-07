@@ -42,10 +42,7 @@ export default function ChatWindow({
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select(`
-          *,
-          sender:users(id, email, full_name, avatar_url)
-        `)
+        .select(`*`)
         .eq(selectedChat.type === 'dm' ? 'direct_message_id' : 'room_id', selectedChat.id)
         .order('created_at', { ascending: true })
 

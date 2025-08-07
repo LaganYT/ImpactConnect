@@ -25,18 +25,10 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
 
   const fetchChatSessions = async () => {
     try {
-      // Fetch direct messages
+      // Fetch direct messages (no joins to avoid RLS issues)
       const { data: dms, error: dmError } = await supabase
         .from('direct_messages')
-        .select(`
-          id,
-          user1_id,
-          user2_id,
-          created_at,
-          updated_at,
-          user1:users!direct_messages_user1_id_fkey(id, email, full_name, avatar_url),
-          user2:users!direct_messages_user2_id_fkey(id, email, full_name, avatar_url)
-        `)
+        .select(`id, user1_id, user2_id, created_at, updated_at`)
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
 
       if (dmError) throw dmError
@@ -60,14 +52,13 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
 
       if (roomError) throw roomError
 
-      // Transform data into ChatSession format
+      // Transform data into ChatSession format (placeholder names for DMs)
       const dmSessions: ChatSession[] = dms?.map(dm => {
-        const otherUser = dm.user1_id === user.id ? dm.user2 : dm.user1
+        const otherUserId = dm.user1_id === user.id ? dm.user2_id : dm.user1_id
         return {
           id: dm.id,
           type: 'dm',
-          name: otherUser?.full_name || otherUser?.email || 'Unknown User',
-          participants: [otherUser],
+          name: `DM with ${otherUserId.slice(0, 6)}`,
           unread_count: 0
         }
       }) || []
