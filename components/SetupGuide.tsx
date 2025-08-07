@@ -125,12 +125,79 @@ CREATE POLICY "Users can send messages" ON messages
 
 -- RLS Policies for room_members
 DROP POLICY IF EXISTS "Users can view room members" ON room_members;
+DROP POLICY IF EXISTS "Users can insert room members" ON room_members;
+DROP POLICY IF EXISTS "Users can update room members" ON room_members;
+DROP POLICY IF EXISTS "Users can delete room members" ON room_members;
+
 CREATE POLICY "Users can view room members" ON room_members
   FOR SELECT USING (
-    room_id IN (
-      SELECT room_id FROM room_members WHERE user_id = auth.uid()
-      UNION
-      SELECT id FROM rooms WHERE is_private = false OR created_by = auth.uid()
+    EXISTS (
+      SELECT 1 FROM room_members rm 
+      WHERE rm.room_id = room_members.room_id 
+      AND rm.user_id = auth.uid()
+    )
+    OR 
+    EXISTS (
+      SELECT 1 FROM rooms r 
+      WHERE r.id = room_members.room_id 
+      AND (r.is_private = false OR r.created_by = auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can insert room members" ON room_members
+  FOR INSERT WITH CHECK (
+    auth.uid() = user_id
+    AND (
+      EXISTS (
+        SELECT 1 FROM rooms r 
+        WHERE r.id = room_id 
+        AND (r.is_private = false OR r.created_by = auth.uid())
+      )
+    )
+  );
+
+CREATE POLICY "Users can update room members" ON room_members
+  FOR UPDATE USING (
+    auth.uid() = user_id
+    OR 
+    EXISTS (
+      SELECT 1 FROM room_members rm 
+      WHERE rm.room_id = room_members.room_id 
+      AND rm.user_id = auth.uid() 
+      AND rm.role = 'admin'
+    )
+    OR
+    EXISTS (
+      SELECT 1 FROM rooms r 
+      WHERE r.id = room_members.room_id 
+      AND r.created_by = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete room members" ON room_members
+  FOR DELETE USING (
+    auth.uid() = user_id
+    OR 
+    EXISTS (
+      SELECT 1 FROM room_members rm 
+      WHERE rm.room_id = room_members.room_id 
+      AND rm.user_id = auth.uid() 
+      AND rm.role = 'admin'
+    )
+    OR
+    EXISTS (
+      SELECT 1 FROM rooms r 
+      WHERE r.id = room_members.room_id 
+      AND r.created_by = auth.uid()
+    )
+  );
+
+CREATE POLICY "Room creators can add members" ON room_members
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM rooms r 
+      WHERE r.id = room_id 
+      AND r.created_by = auth.uid()
     )
   );
 

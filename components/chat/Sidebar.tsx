@@ -16,7 +16,8 @@ import {
   Settings,
   User,
   Hash,
-  Crown
+  Crown,
+  Plus
 } from 'lucide-react'
 import { Room, User as UserType } from '@/lib/supabase'
 
@@ -31,6 +32,10 @@ export function Sidebar({ selectedRoom, onRoomSelect, onDirectMessageSelect }: S
   const [users, setUsers] = useState<UserType[]>([])
   const [currentUser, setCurrentUser] = useState<UserType | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [showCreateRoom, setShowCreateRoom] = useState(false)
+  const [newRoomName, setNewRoomName] = useState('')
+  const [newRoomDescription, setNewRoomDescription] = useState('')
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false)
 
 
   useEffect(() => {
@@ -100,10 +105,12 @@ export function Sidebar({ selectedRoom, onRoomSelect, onDirectMessageSelect }: S
   }
 
   const fetchUsers = async () => {
+    if (!currentUser?.id) return
+    
     const { data } = await supabase
       .from('users')
       .select('*')
-      .neq('id', currentUser?.id || '')
+      .neq('id', currentUser.id)
       .order('full_name', { ascending: true })
 
     setUsers(data || [])
@@ -111,6 +118,87 @@ export function Sidebar({ selectedRoom, onRoomSelect, onDirectMessageSelect }: S
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
+  }
+
+  const handleCreateRoom = async () => {
+    if (!newRoomName.trim() || !currentUser?.id) return
+    
+    setIsCreatingRoom(true)
+    try {
+      console.log('Creating room with name:', newRoomName.trim())
+      console.log('Current user ID:', currentUser.id)
+      
+      // Create the room
+      const { data: room, error: roomError } = await supabase
+        .from('rooms')
+        .insert({
+          name: newRoomName.trim(),
+          description: newRoomDescription.trim() || null,
+          created_by: currentUser.id
+        })
+        .select()
+        .single()
+
+      if (roomError) {
+        console.error('Room creation error:', roomError)
+        throw roomError
+      }
+
+      console.log('Room created successfully:', room)
+
+      // Try to add the creator as a member using the secure function
+      console.log('Adding user to room as member...')
+      const { data: memberResult, error: memberError } = await supabase
+        .rpc('secure_add_room_member', {
+          p_room_id: room.id,
+          p_user_id: currentUser.id,
+          p_role: 'admin'
+        })
+
+      if (memberError) {
+        console.error('Function call error:', memberError)
+        console.log('Falling back to direct insert...')
+        
+        // Fallback to direct insert if function fails
+        const { error: fallbackError } = await supabase
+          .from('room_members')
+          .insert({
+            room_id: room.id,
+            user_id: currentUser.id,
+            role: 'admin'
+          })
+        
+        if (fallbackError) {
+          console.error('Fallback insert error:', fallbackError)
+          throw fallbackError
+        }
+        console.log('Fallback insert successful')
+      } else {
+        console.log('Function call successful:', memberResult)
+      }
+
+      // Reset form and close modal
+      setNewRoomName('')
+      setNewRoomDescription('')
+      setShowCreateRoom(false)
+      
+      // Refresh rooms list
+      await fetchRooms()
+      
+      // Select the new room
+      onRoomSelect(room.id)
+    } catch (error: any) {
+      console.error('Error creating room:', error)
+      console.error('Error details:', {
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint
+      })
+      alert(`Failed to create room: ${error?.message || 'Unknown error'}`)
+    } finally {
+      setIsCreatingRoom(false)
+    }
   }
 
   const filteredRooms = rooms.filter(room =>
@@ -154,6 +242,16 @@ export function Sidebar({ selectedRoom, onRoomSelect, onDirectMessageSelect }: S
               <Hash className="w-4 h-4" />
               Rooms
             </h2>
+            <Tooltip content="Create new room">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowCreateRoom(true)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </Tooltip>
           </div>
 
           <div className="space-y-1">
@@ -308,6 +406,71 @@ export function Sidebar({ selectedRoom, onRoomSelect, onDirectMessageSelect }: S
         </div>
       )}
 
+      {/* Create Room Modal */}
+      {showCreateRoom && (
+        <div className="fixed inset-0 bg-black flex items-center justify-center z-50 p-4">
+          <div className="from-gray-800 to-gray-700 rounded-xl p-6 w-96 max-w-[90vw] shadow-2xl border bg-gray-800 border-gray-600">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Create New Room</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowCreateRoom(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <Plus className="w-4 h-4 rotate-45" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="room-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Room Name *
+                </label>
+                <Input
+                  id="room-name"
+                  placeholder="Enter room name"
+                  value={newRoomName}
+                  onChange={(e) => setNewRoomName(e.target.value)}
+                  className="w-full"
+                  autoFocus
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="room-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Description (optional)
+                </label>
+                <Input
+                  id="room-description"
+                  placeholder="Enter room description"
+                  value={newRoomDescription}
+                  onChange={(e) => setNewRoomDescription(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setShowCreateRoom(false)}
+                className="flex-1"
+                disabled={isCreatingRoom}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateRoom}
+                className="flex-1"
+                disabled={!newRoomName.trim() || isCreatingRoom}
+              >
+                {isCreatingRoom ? 'Creating...' : 'Create Room'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
