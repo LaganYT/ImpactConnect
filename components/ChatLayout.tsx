@@ -10,9 +10,10 @@ import styles from './ChatLayout.module.css'
 
 interface ChatLayoutProps {
   user: User
+  selectedChatId?: string
 }
 
-export default function ChatLayout({ user }: ChatLayoutProps) {
+export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
   const [selectedChat, setSelectedChat] = useState<ChatSession | null>(null)
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,6 +23,14 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
     fetchChatSessions()
     setupRealtimeSubscriptions()
   }, [])
+
+  // Sync selection from selectedChatId when sessions load or id changes
+  useEffect(() => {
+    if (!selectedChatId) return
+    if (chatSessions.length === 0) return
+    const found = chatSessions.find((c) => c.id === selectedChatId)
+    if (found) setSelectedChat(found)
+  }, [selectedChatId, chatSessions])
 
   const fetchChatSessions = async () => {
     try {
@@ -55,6 +64,7 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         id: rm.id,
         type: 'room',
         name: rm.name,
+        inviteCode: rm.invite_code,
         unread_count: 0
       })) || []
 
@@ -106,7 +116,6 @@ export default function ChatLayout({ user }: ChatLayoutProps) {
         user={user}
         chatSessions={chatSessions}
         selectedChat={selectedChat}
-        onSelectChat={setSelectedChat}
         onLogout={handleLogout}
       />
       <ChatWindow

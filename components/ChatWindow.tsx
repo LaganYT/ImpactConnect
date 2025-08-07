@@ -123,7 +123,19 @@ export default function ChatWindow({
         </div>
         {selectedChat.type === 'room' && (
           <div className={styles.roomActions}>
-            <button className={styles.inviteButton}>
+            <button
+              className={styles.inviteButton}
+              onClick={async () => {
+                if (!selectedChat.inviteCode) return
+                const url = `${window.location.origin}/invite/${selectedChat.inviteCode}`
+                try {
+                  await navigator.clipboard.writeText(url)
+                  alert('Invite link copied to clipboard')
+                } catch {
+                  prompt('Copy invite link:', url)
+                }
+              }}
+            >
               Invite
             </button>
           </div>

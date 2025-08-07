@@ -51,4 +51,5 @@ export interface ChatSession {
   last_message?: Message
   unread_count: number
   participants?: User[]
+  inviteCode?: string
 } 

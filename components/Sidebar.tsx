@@ -5,12 +5,12 @@ import { User } from '@supabase/supabase-js'
 import { ChatSession } from '@/lib/types'
 import { createClient } from '@/lib/supabase'
 import styles from './Sidebar.module.css'
+import Link from 'next/link'
 
 interface SidebarProps {
   user: User
   chatSessions: ChatSession[]
   selectedChat: ChatSession | null
-  onSelectChat: (chat: ChatSession) => void
   onLogout: () => void
 }
 
@@ -18,7 +18,6 @@ export default function Sidebar({
   user,
   chatSessions,
   selectedChat,
-  onSelectChat,
   onLogout
 }: SidebarProps) {
   const [showNewChat, setShowNewChat] = useState(false)
@@ -211,12 +210,12 @@ export default function Sidebar({
         {chatSessions
           .filter(chat => chat.type === 'dm')
           .map(chat => (
-            <div
+            <Link
               key={chat.id}
               className={`${styles.chatItem} ${
                 selectedChat?.id === chat.id ? styles.selected : ''
               }`}
-              onClick={() => onSelectChat(chat)}
+              href={`/chat/${chat.id}`}
             >
               <div className={styles.chatAvatar}>
                 {chat.name[0]}
@@ -227,19 +226,19 @@ export default function Sidebar({
                   <span className={styles.unreadBadge}>{chat.unread_count}</span>
                 )}
               </div>
-            </div>
+            </Link>
           ))}
 
         <h3 className={styles.sectionTitle}>Rooms</h3>
         {chatSessions
           .filter(chat => chat.type === 'room')
           .map(chat => (
-            <div
+            <Link
               key={chat.id}
               className={`${styles.chatItem} ${
                 selectedChat?.id === chat.id ? styles.selected : ''
               }`}
-              onClick={() => onSelectChat(chat)}
+              href={`/chat/${chat.id}`}
             >
               <div className={styles.roomAvatar}>
                 #
@@ -250,7 +249,7 @@ export default function Sidebar({
                   <span className={styles.unreadBadge}>{chat.unread_count}</span>
                 )}
               </div>
-            </div>
+            </Link>
           ))}
       </div>
     </div>
