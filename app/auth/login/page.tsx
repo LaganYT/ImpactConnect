@@ -116,7 +116,7 @@ export default function LoginPage() {
         </button>
 
         <p className={styles.signupLink}>
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <a href="/auth/signup" className={styles.link}>
             Sign up
           </a>

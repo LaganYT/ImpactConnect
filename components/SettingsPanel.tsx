@@ -37,7 +37,7 @@ export default function SettingsPanel() {
       }
 
       // Prefer existing auth info immediately
-      const meta: any = user.user_metadata || {}
+      const meta = (user.user_metadata ?? {}) as { full_name?: string; name?: string; user_name?: string }
       const displayFromMeta = meta.full_name || meta.name || meta.user_name || ''
       const computedUsername = emailToUsername(user.email) || ''
 
@@ -91,7 +91,7 @@ export default function SettingsPanel() {
 
     if (upErr) {
       const msg = upErr.message?.toLowerCase() || ''
-      const code = (upErr as any)?.code
+      const code = (upErr as { code?: string })?.code
       if (code === '23505' || msg.includes('duplicate key') || msg.includes('already exists') || msg.includes('unique')) {
         setError('That username is already taken. Please choose another.')
       } else {
@@ -122,8 +122,9 @@ export default function SettingsPanel() {
       }
       setMessage('Auth settings updated. You may need to verify your email.')
       setNewPassword('')
-    } catch (err: any) {
-      setError(err?.message ?? 'Failed to update auth settings')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update auth settings'
+      setError(message)
     } finally {
       setSavingAuth(false)
     }

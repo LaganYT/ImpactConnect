@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const redirectTo = searchParams.get('redirect_to') ?? '/chat'
 
-  let response = NextResponse.redirect(new URL(redirectTo, origin))
+  const response = NextResponse.redirect(new URL(redirectTo, origin))
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

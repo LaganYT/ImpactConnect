@@ -53,7 +53,7 @@ export default function VerifyEmailPage() {
         <div className={styles.icon}>📧</div>
         <h1 className={styles.title}>Check your email</h1>
         <p className={styles.subtitle}>
-          We've sent a verification link to your email address.
+          We&apos;ve sent a verification link to your email address.
         </p>
 
         <div className={styles.emailInput}>
@@ -93,7 +93,7 @@ export default function VerifyEmailPage() {
         </div>
 
         <p className={styles.help}>
-          Didn't receive the email? Check your spam folder or try a different email address.
+          Didn&apos;t receive the email? Check your spam folder or try a different email address.
         </p>
       </div>
     </div>

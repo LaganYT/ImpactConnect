@@ -7,7 +7,7 @@ import Sidebar from '@/components/Sidebar'
 import ChatWindow from '@/components/ChatWindow'
 import SettingsPanel from './SettingsPanel'
 import Modal from './Modal'
-import { ChatSession } from '@/lib/types'
+import { ChatSession, Room } from '@/lib/types'
 import { emailToUsername } from '@/lib/usernames'
 import styles from './ChatLayout.module.css'
 
@@ -55,7 +55,6 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
 
       // Transform data into ChatSession format (placeholder names for DMs)
       const dmSessions: ChatSession[] = dms?.map(dm => {
-        const otherUserId = dm.user1_id === user.id ? dm.user2_id : dm.user1_id
         // Best-effort: if current user, show their own username as context
         const selfUsername = emailToUsername(user.email) || 'you'
         return {
@@ -66,7 +65,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
         }
       }) || []
 
-      const roomSessions: ChatSession[] = rooms?.map((rm: any) => ({
+      const roomSessions: ChatSession[] = rooms?.map((rm: Room) => ({
         id: rm.id,
         type: 'room',
         name: rm.name,
@@ -130,7 +129,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
         <ChatWindow
         user={user}
         selectedChat={selectedChat}
-        onSendMessage={async (content: any) => {
+        onSendMessage={async (content: string) => {
           if (!selectedChat) return
           
           // Fetch sender's canonical username from profile
@@ -147,7 +146,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
             .insert({
               content,
               sender_id: user.id,
-              sender_name: (user.user_metadata as any)?.full_name || null,
+              sender_name: (user.user_metadata as { full_name?: string })?.full_name || null,
               sender_email: user.email || null,
               sender_username: senderUsername,
               [selectedChat.type === 'dm' ? 'direct_message_id' : 'room_id']: selectedChat.id

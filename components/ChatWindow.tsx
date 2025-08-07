@@ -166,7 +166,7 @@ export default function ChatWindow({
                       const username = explicitUsername || derivedUsername || null
 
                       const explicitFullName = message.sender_name || null
-                      const derivedFullName = message.sender_id === user.id ? (user.user_metadata as any)?.full_name || null : null
+                      const derivedFullName = message.sender_id === user.id ? (user.user_metadata as { full_name?: string })?.full_name || null : null
                       const fullName = explicitFullName || derivedFullName || null
 
                       if (fullName && username) return `${fullName} (${username})`

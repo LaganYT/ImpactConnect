@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { ChatSession } from '@/lib/types'
 import { createClient } from '@/lib/supabase'
-import { emailToUsername } from '@/lib/usernames'
 import styles from './Sidebar.module.css'
 import Link from 'next/link'
 
@@ -77,7 +76,7 @@ export default function Sidebar({
       }
 
       // Create new DM
-      const { data: newDM, error: dmError } = await supabase
+      const { data: _newDM, error: dmError } = await supabase
         .from('direct_messages')
         .insert({
           user1_id: user.id,
@@ -106,7 +105,7 @@ export default function Sidebar({
 
     try {
       // Use RPC to create room and add creator as admin in one transaction
-      const { data: roomId, error: rpcError } = await supabase
+      const { data: _roomId, error: rpcError } = await supabase
         .rpc('create_room_with_owner', {
           p_name: newRoomName,
           p_description: newRoomDescription,
