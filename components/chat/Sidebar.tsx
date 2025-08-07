@@ -78,11 +78,28 @@ export function Sidebar({ selectedRoom, onRoomSelect, onDirectMessageSelect }: S
   }
 
   const fetchRooms = async () => {
-    const { data } = await supabase
+    if (!currentUser) return
+    
+    // First get the room IDs that the user is a member of
+    const { data: memberships } = await supabase
+      .from('room_members')
+      .select('room_id')
+      .eq('user_id', currentUser.id)
+    
+    if (!memberships || memberships.length === 0) {
+      setRooms([])
+      return
+    }
+    
+    // Then fetch the room details for those rooms
+    const roomIds = memberships.map(m => m.room_id)
+    const { data: rooms } = await supabase
       .from('rooms')
       .select('*')
+      .in('id', roomIds)
       .order('updated_at', { ascending: false })
-    setRooms(data || [])
+    
+    setRooms(rooms || [])
   }
 
   const fetchRoomMembers = async () => {
@@ -123,7 +140,8 @@ export function Sidebar({ selectedRoom, onRoomSelect, onDirectMessageSelect }: S
     
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      // Create the room
+      const { data: room, error: roomError } = await supabase
         .from('rooms')
         .insert([
           {
@@ -135,12 +153,25 @@ export function Sidebar({ selectedRoom, onRoomSelect, onDirectMessageSelect }: S
         .select()
         .single()
 
-      if (error) throw error
+      if (roomError) throw roomError
 
-      setRooms([data, ...rooms])
+      // Add the creator as an admin member
+      const { error: memberError } = await supabase
+        .from('room_members')
+        .insert([
+          {
+            room_id: room.id,
+            user_id: currentUser.id,
+            role: 'admin'
+          }
+        ])
+
+      if (memberError) throw memberError
+
+      setRooms([room, ...rooms])
       setNewRoomName('')
       setShowCreateRoom(false)
-      onRoomSelect(data.id)
+      onRoomSelect(room.id)
     } catch (error) {
       console.error('Error creating room:', error)
     } finally {
