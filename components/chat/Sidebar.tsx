@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { ContextMenu } from '@/components/ui/ContextMenu'
-import { UserSettings } from '@/components/UserSettings'
+
 import { 
   MessageSquare, 
   Users, 
@@ -31,7 +31,7 @@ export function Sidebar({ selectedRoom, onRoomSelect, onDirectMessageSelect }: S
   const [users, setUsers] = useState<UserType[]>([])
   const [currentUser, setCurrentUser] = useState<UserType | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [showUserSettings, setShowUserSettings] = useState(false)
+
 
   useEffect(() => {
     const initializeData = async () => {
@@ -125,8 +125,7 @@ export function Sidebar({ selectedRoom, onRoomSelect, onDirectMessageSelect }: S
     <div className="w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full shadow-lg">
       {/* Header */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg">
               <MessageSquare className="w-5 h-5 text-white" />
             </div>
@@ -135,16 +134,6 @@ export function Sidebar({ selectedRoom, onRoomSelect, onDirectMessageSelect }: S
               <p className="text-xs text-gray-500 dark:text-gray-400">Real-time messaging</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleSignOut}
-            title="Sign out"
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            <LogOut className="w-4 h-4" />
-          </Button>
-        </div>
         
         <div className="relative">
           <Input
@@ -291,60 +280,35 @@ export function Sidebar({ selectedRoom, onRoomSelect, onDirectMessageSelect }: S
 
       {/* User Profile */}
       {currentUser && (
-        <ContextMenu
-          items={[
-            {
-              label: 'User Settings',
-              icon: <Settings className="w-4 h-4" />,
-              onClick: () => setShowUserSettings(true)
-            },
-            {
-              label: 'Copy User ID',
-              icon: <User className="w-4 h-4" />,
-              onClick: () => navigator.clipboard.writeText(currentUser.id)
-            },
-            { separator: true },
-            {
-              label: 'Sign Out',
-              icon: <LogOut className="w-4 h-4" />,
-              onClick: handleSignOut,
-              danger: true
-            }
-          ]}
-        >
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold">
-                {currentUser.full_name.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                  {currentUser.full_name}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                  {currentUser.email}
-                </p>
-              </div>
-              
-              <Tooltip content="User Settings">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => setShowUserSettings(true)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  <Settings className="w-4 h-4" />
-                </Button>
-              </Tooltip>
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold">
+              {currentUser.full_name.charAt(0).toUpperCase()}
             </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                {currentUser.full_name}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                {currentUser.email}
+              </p>
+            </div>
+            
+            <Tooltip content="Sign out">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleSignOut}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </Tooltip>
           </div>
-        </ContextMenu>
+        </div>
       )}
 
-      {/* User Settings Modal */}
-      {showUserSettings && (
-        <UserSettings onClose={() => setShowUserSettings(false)} />
-      )}
+
     </div>
   )
 } 
