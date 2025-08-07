@@ -150,7 +150,7 @@ export function MessageSearch({ messages, users, onClose, onMessageSelect }: Mes
                             {user.full_name}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {formatTime(message.created_at)}
+                            {formatTime(message.created_at, true)}
                           </span>
                         </div>
                         <p className="text-sm text-foreground">

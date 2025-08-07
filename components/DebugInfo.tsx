@@ -14,8 +14,8 @@ export function DebugInfo() {
   const checkSession = async () => {
     try {
       console.log('Manually checking session...')
-      const { data: { session }, error } = await supabase.auth.getSession()
-      console.log('Manual session check result:', { session, error })
+      const { data: { session } } = await supabase.auth.getSession()
+      console.log('Manual session check result:', { session })
       setSession(session)
       setUser(session?.user)
       setLastCheck(new Date().toLocaleTimeString())

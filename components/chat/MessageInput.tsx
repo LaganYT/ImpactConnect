@@ -36,7 +36,7 @@ export function MessageInput({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const typingTimeoutRef = useRef<NodeJS.Timeout>()
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const emojis = [
     '😊', '😂', '❤️', '👍', '🎉', '🔥', '👏', '🙏',

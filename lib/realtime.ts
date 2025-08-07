@@ -62,7 +62,7 @@ export class RealtimeService {
               ? `room_id=eq.${roomId}`
               : `or(and(sender_id.eq.${userId},recipient_id.eq.${userId}),and(sender_id.eq.${userId},recipient_id.eq.${userId}))`
           },
-          (payload) => {
+          (payload: { new: Message }) => {
             onMessage(payload.new as Message)
           }
         )

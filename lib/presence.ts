@@ -81,7 +81,10 @@ export class PresenceService {
   private startHeartbeat(): void {
     this.heartbeatInterval = setInterval(() => {
       if (this.currentUserId && this.currentStatus !== 'offline') {
-        this.updatePresence(this.currentStatus, this.currentRoomId)
+        this.updatePresence(
+          this.currentStatus,
+          this.currentRoomId === null ? undefined : this.currentRoomId
+        )
       }
     }, 30000) // Update every 30 seconds
   }
@@ -159,17 +162,17 @@ export class PresenceService {
 
   // Set busy status (e.g., when typing)
   async setBusy(): Promise<void> {
-    await this.updatePresence('busy', this.currentRoomId)
+    await this.updatePresence('busy', this.currentRoomId ?? undefined)
   }
 
   // Set away status
   async setAway(): Promise<void> {
-    await this.updatePresence('away', this.currentRoomId)
+    await this.updatePresence('away', this.currentRoomId ?? undefined)
   }
 
   // Set online status
   async setOnline(): Promise<void> {
-    await this.updatePresence('online', this.currentRoomId)
+    await this.updatePresence('online', this.currentRoomId ?? undefined)
   }
 
   // Join a room
