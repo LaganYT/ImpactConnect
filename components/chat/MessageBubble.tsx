@@ -1,74 +1,124 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
+import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { Button } from '@/components/ui/Button'
+import { ContextMenu } from '@/components/ui/ContextMenu'
 import { 
-  Heart, 
-  ThumbsUp, 
-  Smile, 
-  MoreVertical, 
-  Reply,
-  Clock,
+  MoreHorizontal, 
+  Edit, 
+  Trash2, 
+  Reply, 
+  Pin, 
+  Flag,
+  Smile,
+  Image,
+  File,
+  Music,
+  Download,
+  Eye,
+  EyeOff,
   Check,
-  CheckCheck
+  X
 } from 'lucide-react'
 import { Message, User } from '@/lib/supabase'
-import { formatTime } from '@/lib/utils'
+import { formatTime, formatFileSize } from '@/lib/utils'
 
 interface MessageBubbleProps {
   message: Message
   sender: User
   currentUser: User
   isOwnMessage: boolean
-  showAvatar?: boolean
-  onReply?: (message: Message) => void
-  onReaction?: (messageId: string, reaction: string) => void
+  showAvatar: boolean
+  onReply: (message: Message) => void
+  onReaction: (messageId: string, reaction: string) => void
+  onEdit?: (messageId: string, newContent: string) => void
+  onDelete?: (messageId: string) => void
+  onPin?: (messageId: string) => void
 }
 
-export function MessageBubble({ 
-  message, 
-  sender, 
-  currentUser, 
-  isOwnMessage, 
-  showAvatar = true,
+export function MessageBubble({
+  message,
+  sender,
+  currentUser,
+  isOwnMessage,
+  showAvatar,
   onReply,
-  onReaction
+  onReaction,
+  onEdit,
+  onDelete,
+  onPin
 }: MessageBubbleProps) {
-  const [showReactions, setShowReactions] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editContent, setEditContent] = useState(message.content)
+  const editInputRef = useRef<HTMLTextAreaElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
-  const reactions = [
-    { emoji: '👍', label: 'Thumbs Up' },
-    { emoji: '❤️', label: 'Heart' },
-    { emoji: '😊', label: 'Smile' },
-    { emoji: '🎉', label: 'Party' },
-    { emoji: '👏', label: 'Clap' },
-    { emoji: '🔥', label: 'Fire' }
-  ]
+  useEffect(() => {
+    if (isEditing && editInputRef.current) {
+      editInputRef.current.focus()
+      editInputRef.current.setSelectionRange(editContent.length, editContent.length)
+    }
+  }, [isEditing])
 
-  const getMessageStatus = () => {
-    // Simulate message status - in real app, this would come from the database
-    const now = new Date()
-    const messageTime = new Date(message.created_at)
-    const diffMinutes = (now.getTime() - messageTime.getTime()) / (1000 * 60)
-    
-    if (diffMinutes < 1) return 'sending'
-    if (diffMinutes < 2) return 'sent'
-    return 'delivered'
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false)
+      }
+    }
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showMenu])
+
+  const handleEdit = async () => {
+    if (!onEdit || !editContent.trim() || editContent === message.content) {
+      setIsEditing(false)
+      return
+    }
+
+    try {
+      await onEdit(message.id, editContent.trim())
+      setIsEditing(false)
+    } catch (error) {
+      console.error('Error editing message:', error)
+    }
   }
 
-  const statusIcon = {
-    sending: <Clock className="w-3 h-3 text-muted-foreground" />,
-    sent: <Check className="w-3 h-3 text-muted-foreground" />,
-    delivered: <CheckCheck className="w-3 h-3 text-primary" />
+  const handleDelete = async () => {
+    if (!onDelete) return
+
+    if (confirm('Are you sure you want to delete this message?')) {
+      try {
+        await onDelete(message.id)
+      } catch (error) {
+        console.error('Error deleting message:', error)
+      }
+    }
+  }
+
+  const handlePin = async () => {
+    if (!onPin) return
+
+    try {
+      await onPin(message.id)
+    } catch (error) {
+      console.error('Error pinning message:', error)
+    }
   }
 
   return (
-    <div className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
-      {showAvatar && !isOwnMessage && (
+    <div className={`group flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+      {showAvatar && (
         <Avatar
           src={sender.avatar_url}
           fallback={sender.full_name}
@@ -77,117 +127,139 @@ export function MessageBubble({
         />
       )}
       
-      <div className={`flex flex-col max-w-[70%] ${isOwnMessage ? 'items-end' : 'items-start'}`}>
-        {!isOwnMessage && (
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-medium text-foreground">
-              {sender.full_name}
+      <div className={`flex-1 max-w-[70%] ${!showAvatar ? 'ml-11' : ''}`}>
+        {showAvatar && (
+          <div className={`flex items-center gap-2 mb-1 ${isOwnMessage ? 'justify-end' : ''}`}>
+            <span className="text-sm font-semibold text-gray-900 dark:text-white">
+              {sender.display_name || sender.full_name}
             </span>
-            <Tooltip content={formatTime(message.created_at, true)}>
-              <span className="text-xs text-muted-foreground">
-                {formatTime(message.created_at, true)}
-              </span>
-            </Tooltip>
-          </div>
-        )}
-        
-        <div className="relative group">
-          <div
-            className={`
-              px-4 py-2 rounded-2xl break-words
-              ${isOwnMessage 
-                ? 'bg-primary text-primary-foreground rounded-br-md' 
-                : 'bg-muted text-foreground rounded-bl-md'
-              }
-            `}
-            onMouseEnter={() => setShowMenu(true)}
-            onMouseLeave={() => setShowMenu(false)}
-          >
-            <p className="text-sm leading-relaxed">{message.content}</p>
-            
-            {/* Message status for own messages */}
-            {isOwnMessage && (
-              <div className="flex items-center justify-end gap-1 mt-1">
-                {statusIcon[getMessageStatus()]}
-              </div>
+            <span className="text-xs text-gray-500">
+              {formatTime(message.created_at)}
+            </span>
+            {message.edited_at && (
+              <span className="text-xs text-gray-400">(edited)</span>
+            )}
+            {message.is_pinned && (
+              <Badge variant="secondary" size="sm" className="text-xs">
+                <Pin className="w-3 h-3 mr-1" />
+                Pinned
+              </Badge>
             )}
           </div>
+        )}
 
-          {/* Message actions menu */}
-          {showMenu && (
-            <div className={`
-              absolute top-0 z-10 flex items-center gap-1 p-1 rounded-lg bg-background border shadow-lg
-              ${isOwnMessage ? 'right-full mr-2' : 'left-full ml-2'}
-            `}>
-              <Tooltip content="Reply">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-6 h-6"
-                  onClick={() => onReply?.(message)}
-                >
-                  <Reply className="w-3 h-3" />
-                </Button>
-              </Tooltip>
-              
-              <Tooltip content="React">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-6 h-6"
-                  onClick={() => setShowReactions(!showReactions)}
-                >
-                  <Smile className="w-3 h-3" />
-                </Button>
-              </Tooltip>
-              
-              <Tooltip content="More">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-6 h-6"
-                >
-                  <MoreVertical className="w-3 h-3" />
-                </Button>
-              </Tooltip>
-            </div>
-          )}
+        <ContextMenu
+          items={[
+            {
+              label: 'Reply',
+              icon: <Reply className="w-4 h-4" />,
+              onClick: () => onReply(message)
+            },
+            ...(isOwnMessage ? [
+              { separator: true },
+              {
+                label: 'Edit Message',
+                icon: <Edit className="w-4 h-4" />,
+                onClick: () => setIsEditing(true),
+                disabled: !onEdit
+              },
+              {
+                label: 'Delete Message',
+                icon: <Trash2 className="w-4 h-4" />,
+                onClick: () => handleDelete(),
+                danger: true,
+                disabled: !onDelete
+              }
+            ] : []),
+            { separator: true },
+            {
+              label: 'Copy Message',
+              icon: <File className="w-4 h-4" />,
+              onClick: () => navigator.clipboard.writeText(message.content)
+            }
+          ].filter(Boolean)}
+        >
+          <div className={`relative ${isOwnMessage ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800'} rounded-lg p-3`}>
+            {isEditing ? (
+              <div className="space-y-2">
+                <textarea
+                  ref={editInputRef}
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="w-full bg-transparent border-none outline-none resize-none text-sm"
+                  rows={Math.max(1, editContent.split('\n').length)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleEdit()
+                    }
+                    if (e.key === 'Escape') {
+                      setIsEditing(false)
+                      setEditContent(message.content)
+                    }
+                  }}
+                />
+                <div className="flex items-center gap-2">
+                  <Button size="sm" onClick={handleEdit}>
+                    <Check className="w-3 h-3 mr-1" />
+                    Save
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    setIsEditing(false)
+                    setEditContent(message.content)
+                  }}>
+                    <X className="w-3 h-3 mr-1" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+            )}
 
-          {/* Reactions popup */}
-          {showReactions && (
-            <div className={`
-              absolute top-0 z-20 flex items-center gap-1 p-2 rounded-lg bg-background border shadow-lg
-              ${isOwnMessage ? 'right-full mr-2' : 'left-full ml-2'}
-            `}>
-              {reactions.map((reaction) => (
-                <Tooltip key={reaction.label} content={reaction.label}>
+            {/* Simple Message Actions */}
+            <div className={`absolute top-2 ${isOwnMessage ? 'left-2' : 'right-2'} opacity-0 group-hover:opacity-100 transition-opacity`}>
+              <div className="flex items-center gap-1 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-1">
+                <Tooltip content="Reply">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="w-8 h-8 text-lg hover:scale-110 transition-transform"
-                    onClick={() => {
-                      onReaction?.(message.id, reaction.emoji)
-                      setShowReactions(false)
-                    }}
+                    onClick={() => onReply(message)}
+                    className="w-8 h-8"
                   >
-                    {reaction.emoji}
+                    <Reply className="w-4 h-4" />
                   </Button>
                 </Tooltip>
-              ))}
-            </div>
-          )}
-        </div>
+                
+                {isOwnMessage && onEdit && (
+                  <Tooltip content="Edit">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setIsEditing(true)}
+                      className="w-8 h-8"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </Tooltip>
+                )}
 
-        {/* Message reactions display */}
-        {message.reactions && message.reactions.length > 0 && (
-          <div className="flex items-center gap-1 mt-1">
-            {message.reactions.map((reaction, index) => (
-              <Badge key={index} variant="secondary" size="sm">
-                {reaction.emoji} {reaction.count}
-              </Badge>
-            ))}
+                {isOwnMessage && onDelete && (
+                  <Tooltip content="Delete">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleDelete}
+                      className="w-8 h-8 text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </Tooltip>
+                )}
+              </div>
+            </div>
           </div>
-        )}
+        </ContextMenu>
       </div>
     </div>
   )

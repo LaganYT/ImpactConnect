@@ -4,27 +4,18 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { realtimeService } from '@/lib/realtime'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import { MessageBubble } from './MessageBubble'
 import { MessageInput } from './MessageInput'
 import { TypingIndicator } from './TypingIndicator'
-import { MessageSearch } from './MessageSearch'
-import { InviteManager } from './InviteManager'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { 
   MessageSquare, 
   User, 
-  Hash, 
-  MoreVertical,
-  Search,
-  Users,
-  Settings,
-  Phone,
-  Video
+  Hash
 } from 'lucide-react'
-import { Message, Room, User as UserType, RoomMember } from '@/lib/supabase'
+import { Message, Room, User as UserType } from '@/lib/supabase'
 import { formatTime, truncateText } from '@/lib/utils'
 
 interface ChatAreaProps {
@@ -40,19 +31,13 @@ export function ChatArea({ selectedRoom, selectedUser, currentUser }: ChatAreaPr
   const [userInfo, setUserInfo] = useState<UserType | null>(null)
   const [typingUsers, setTypingUsers] = useState<Array<{ id: string; name: string; avatar_url?: string }>>([])
   const [replyTo, setReplyTo] = useState<{ message: string; sender: string } | null>(null)
-  const [showSearch, setShowSearch] = useState(false)
-  const [showInviteManager, setShowInviteManager] = useState(false)
-  const [allUsers, setAllUsers] = useState<UserType[]>([])
-  const [roomMembers, setRoomMembers] = useState<RoomMember[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (selectedRoom || selectedUser) {
       fetchMessages()
-      fetchAllUsers()
       if (selectedRoom) {
         fetchRoomInfo()
-        fetchRoomMembers()
       } else if (selectedUser) {
         fetchUserInfo()
       }
@@ -60,7 +45,6 @@ export function ChatArea({ selectedRoom, selectedUser, currentUser }: ChatAreaPr
       setMessages([])
       setRoomInfo(null)
       setUserInfo(null)
-      setRoomMembers([])
     }
   }, [selectedRoom, selectedUser])
 
@@ -134,31 +118,6 @@ export function ChatArea({ selectedRoom, selectedUser, currentUser }: ChatAreaPr
     setUserInfo(data)
   }
 
-  const fetchAllUsers = async () => {
-    const { data } = await supabase
-      .from('users')
-      .select('*')
-      .order('full_name')
-    setAllUsers(data || [])
-  }
-
-  const fetchRoomMembers = async () => {
-    if (!selectedRoom) return
-    const { data } = await supabase
-      .from('room_members')
-      .select(`
-        *,
-        users (
-          id,
-          full_name,
-          email,
-          avatar_url
-        )
-      `)
-      .eq('room_id', selectedRoom)
-    setRoomMembers(data || [])
-  }
-
   const sendMessage = async (content: string) => {
     if (!content.trim() || !currentUser) return
 
@@ -186,29 +145,21 @@ export function ChatArea({ selectedRoom, selectedUser, currentUser }: ChatAreaPr
   }
 
   const handleReply = (message: Message) => {
-    const sender = message.sender_id === currentUser?.id ? 'You' : 
-                  (selectedRoom ? 'Someone' : userInfo?.full_name || 'User')
+    const senderName = message.sender_id === currentUser?.id ? 'yourself' : 'this message'
     setReplyTo({
       message: message.content,
-      sender
+      sender: senderName
     })
   }
 
   const handleReaction = async (messageId: string, reaction: string) => {
-    // In a real app, you'd store reactions in the database
+    // Simplified reaction handling
     console.log('Reaction:', reaction, 'on message:', messageId)
   }
 
   const handleMessageSelect = (messageId: string) => {
-    // Scroll to the selected message
-    const messageElement = document.getElementById(`message-${messageId}`)
-    if (messageElement) {
-      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      messageElement.classList.add('ring-2', 'ring-primary', 'ring-opacity-50')
-      setTimeout(() => {
-        messageElement.classList.remove('ring-2', 'ring-primary', 'ring-opacity-50')
-      }, 3000)
-    }
+    // Simplified message selection
+    console.log('Selected message:', messageId)
   }
 
   const scrollToBottom = () => {
@@ -217,16 +168,14 @@ export function ChatArea({ selectedRoom, selectedUser, currentUser }: ChatAreaPr
 
   if (!selectedRoom && !selectedUser) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-background">
+      <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <div className="w-20 h-20 bg-gradient-to-br from-primary to-primary-hover rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-            <MessageSquare className="w-10 h-10 text-primary-foreground" />
-          </div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">
+          <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
             Welcome to ImpactConnect
-          </h2>
-          <p className="text-muted-foreground max-w-md">
-            Select a room or start a direct message to begin chatting with others.
+          </h3>
+          <p className="text-gray-500 dark:text-gray-400">
+            Select a room or user to start messaging
           </p>
         </div>
       </div>
@@ -234,62 +183,41 @@ export function ChatArea({ selectedRoom, selectedUser, currentUser }: ChatAreaPr
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-background">
+    <div className="flex-1 flex flex-col bg-white dark:bg-gray-900">
       {/* Header */}
-      <div className="p-6 border-b bg-card shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Avatar
-              src={selectedRoom ? undefined : userInfo?.avatar_url}
-              fallback={selectedRoom ? roomInfo?.name : userInfo?.full_name}
-              size="lg"
-              className={selectedRoom ? 'bg-gradient-to-br from-primary to-primary-hover' : ''}
-            />
-            <div>
-              <h2 className="text-xl font-bold text-foreground">
-                {selectedRoom ? roomInfo?.name : userInfo?.full_name}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {selectedRoom 
-                  ? `${roomInfo?.description || 'No description'} • ${messages.length} messages`
-                  : 'Direct message'
-                }
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Tooltip content="Search messages">
-              <Button variant="ghost" size="icon" onClick={() => setShowSearch(true)}>
-                <Search className="w-4 h-4" />
-              </Button>
-            </Tooltip>
-            {selectedRoom && (
-              <Tooltip content="Invite people">
-                <Button variant="ghost" size="icon" onClick={() => setShowInviteManager(true)}>
-                  <Users className="w-4 h-4" />
-                </Button>
-              </Tooltip>
-            )}
-            {selectedUser && (
-              <>
-                <Tooltip content="Voice call">
-                  <Button variant="ghost" size="icon">
-                    <Phone className="w-4 h-4" />
-                  </Button>
-                </Tooltip>
-                <Tooltip content="Video call">
-                  <Button variant="ghost" size="icon">
-                    <Video className="w-4 h-4" />
-                  </Button>
-                </Tooltip>
-              </>
-            )}
-            <Tooltip content="More options">
-              <Button variant="ghost" size="icon">
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-            </Tooltip>
-          </div>
+      <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+        <div className="flex items-center gap-3">
+          {selectedRoom ? (
+            <>
+              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                <Hash className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {roomInfo?.name || 'Loading...'}
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {roomInfo?.description || 'No description'}
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <Avatar
+                src={userInfo?.avatar_url}
+                fallback={userInfo?.full_name || 'User'}
+                size="lg"
+              />
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {userInfo?.full_name || 'Loading...'}
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Direct Message
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -322,6 +250,20 @@ export function ChatArea({ selectedRoom, selectedUser, currentUser }: ChatAreaPr
                   showAvatar={showAvatar}
                   onReply={handleReply}
                   onReaction={handleReaction}
+                  onEdit={(messageId, newContent) => {
+                    // Update message in local state
+                    setMessages(prev => prev.map(msg => 
+                      msg.id === messageId ? { ...msg, content: newContent, edited_at: new Date().toISOString() } : msg
+                    ))
+                  }}
+                  onDelete={(messageId) => {
+                    // Remove message from local state
+                    setMessages(prev => prev.filter(msg => msg.id !== messageId))
+                  }}
+                  onPin={(messageId) => {
+                    // Handle message pinning
+                    console.log('Message pinned:', messageId)
+                  }}
                 />
               </div>
             )
@@ -345,25 +287,6 @@ export function ChatArea({ selectedRoom, selectedUser, currentUser }: ChatAreaPr
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
       />
-
-      {/* Search Modal */}
-      {showSearch && (
-        <MessageSearch
-          messages={messages}
-          users={allUsers}
-          onClose={() => setShowSearch(false)}
-          onMessageSelect={handleMessageSelect}
-        />
-      )}
-
-      {/* Invite Manager Modal */}
-      {showInviteManager && roomInfo && (
-        <InviteManager
-          roomId={selectedRoom!}
-          roomName={roomInfo.name}
-          onClose={() => setShowInviteManager(false)}
-        />
-      )}
     </div>
   )
 } 

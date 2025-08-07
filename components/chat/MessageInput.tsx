@@ -5,226 +5,138 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { 
-  Send, 
-  Smile, 
-  Paperclip, 
-  Mic, 
-  Image, 
-  File,
-  X
+  Send
 } from 'lucide-react'
 
 interface MessageInputProps {
-  onSendMessage: (message: string) => void
+  onSendMessage: (content: string) => void
   onTyping?: (isTyping: boolean) => void
-  placeholder?: string
   disabled?: boolean
   replyTo?: { message: string; sender: string } | null
   onCancelReply?: () => void
+  placeholder?: string
 }
 
-export function MessageInput({ 
-  onSendMessage, 
-  onTyping, 
-  placeholder = "Type a message...",
+export function MessageInput({
+  onSendMessage,
+  onTyping,
   disabled = false,
   replyTo,
-  onCancelReply
+  onCancelReply,
+  placeholder = "Type a message..."
 }: MessageInputProps) {
   const [message, setMessage] = useState('')
   const [isTyping, setIsTyping] = useState(false)
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  const emojis = [
-    '😊', '😂', '❤️', '👍', '🎉', '🔥', '👏', '🙏',
-    '😍', '🤔', '😭', '😡', '🤗', '😴', '🤯', '🥳',
-    '😎', '🤩', '😇', '🤪', '😋', '🤓', '😤', '😅'
-  ]
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+    }
+  }, [message])
+
+  useEffect(() => {
+    let typingTimeout: NodeJS.Timeout
     if (isTyping) {
-      onTyping?.(true)
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current)
-      }
-      typingTimeoutRef.current = setTimeout(() => {
+      typingTimeout = setTimeout(() => {
         setIsTyping(false)
         onTyping?.(false)
       }, 1000)
     }
+
+    return () => {
+      if (typingTimeout) {
+        clearTimeout(typingTimeout)
+      }
+    }
   }, [isTyping, onTyping])
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setMessage(value)
-    setIsTyping(value.length > 0)
+  const handleSend = async () => {
+    if (!message.trim() || disabled) return
+
+    const content = message.trim()
+    setMessage('')
+    setIsTyping(false)
+    onTyping?.(false)
+    
+    try {
+      await onSendMessage(content)
+    } catch (error) {
+      console.error('Error sending message:', error)
+    }
   }
 
-  const handleSendMessage = () => {
-    if (message.trim() && !disabled) {
-      onSendMessage(message.trim())
-      setMessage('')
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value
+    setMessage(value)
+    
+    if (!isTyping && value.trim()) {
+      setIsTyping(true)
+      onTyping?.(true)
+    } else if (isTyping && !value.trim()) {
       setIsTyping(false)
       onTyping?.(false)
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSendMessage()
-    }
-  }
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    setSelectedFiles(prev => [...prev, ...files])
-  }
-
-  const removeFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const addEmoji = (emoji: string) => {
-    setMessage(prev => prev + emoji)
-    setShowEmojiPicker(false)
-  }
-
   return (
-    <div className="border-t bg-background p-4">
-      {/* Reply preview */}
+    <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+      {/* Reply Preview */}
       {replyTo && (
-        <div className="mb-3 p-3 bg-muted rounded-lg relative">
-          <div className="flex items-start gap-2">
+        <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
                 Replying to {replyTo.sender}
               </p>
-              <p className="text-sm text-muted-foreground truncate">
+              <p className="text-sm text-blue-700 dark:text-blue-300 truncate">
                 {replyTo.message}
               </p>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="w-6 h-6"
               onClick={onCancelReply}
+              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
             >
-              <X className="w-4 h-4" />
+              <span className="text-lg">×</span>
             </Button>
           </div>
         </div>
       )}
 
-      {/* Selected files preview */}
-      {selectedFiles.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-2">
-          {selectedFiles.map((file, index) => (
-            <div
-              key={index}
-              className="flex items-center gap-2 p-2 bg-muted rounded-lg"
-            >
-              <File className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-foreground truncate max-w-32">
-                {file.name}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-4 h-4"
-                onClick={() => removeFile(index)}
-              >
-                <X className="w-3 h-3" />
-              </Button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Input area */}
-      <div className="flex items-end gap-2">
-        <div className="flex-1 relative">
-          <Input
+      {/* Message Input */}
+      <div className="flex items-end gap-3">
+        <div className="flex-1">
+          <textarea
+            ref={textareaRef}
             value={message}
             onChange={handleInputChange}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}
-            className="pr-20"
+            className="w-full resize-none bg-transparent border-none outline-none text-sm placeholder-gray-500 dark:placeholder-gray-400 min-h-[20px] max-h-32"
+            rows={1}
           />
-          
-          {/* Emoji picker */}
-          {showEmojiPicker && (
-            <div className="absolute bottom-full left-0 mb-2 p-2 bg-background border rounded-lg shadow-lg grid grid-cols-8 gap-1 z-10">
-              {emojis.map((emoji, index) => (
-                <button
-                  key={index}
-                  className="w-8 h-8 text-lg hover:bg-muted rounded transition-colors"
-                  onClick={() => addEmoji(emoji)}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-1">
-          <Tooltip content="Add emoji">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-10 h-10"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            >
-              <Smile className="w-5 h-5" />
-            </Button>
-          </Tooltip>
-
-          <Tooltip content="Attach file">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-10 h-10"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Paperclip className="w-5 h-5" />
-            </Button>
-          </Tooltip>
-
-          <Tooltip content="Voice message">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-10 h-10"
-            >
-              <Mic className="w-5 h-5" />
-            </Button>
-          </Tooltip>
-
-          <Button
-            onClick={handleSendMessage}
-            disabled={!message.trim() || disabled}
-            className="w-10 h-10"
-          >
-            <Send className="w-5 h-5" />
-          </Button>
-        </div>
+        {/* Send Button */}
+        <Button
+          onClick={handleSend}
+          disabled={disabled || !message.trim()}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          <Send className="w-4 h-4" />
+        </Button>
       </div>
-
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        className="hidden"
-        onChange={handleFileSelect}
-        accept="image/*,.pdf,.doc,.docx,.txt"
-      />
     </div>
   )
 } 
