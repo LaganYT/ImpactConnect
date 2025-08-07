@@ -56,7 +56,7 @@ export function InviteManager({ roomId, roomName, onClose, onInviteCreated }: In
       if (!user) return
 
       const invite = await InviteService.createInvite(roomId, user.id, {
-        maxUses: undefined, // Unlimited uses (null/undefined means no limit)
+        maxUses: undefined, // Unlimited uses (undefined means no limit)
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
       })
 
