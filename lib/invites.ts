@@ -51,7 +51,6 @@ export class InviteService {
         .from('room_invites')
         .select('*')
         .eq('code', code)
-        .eq('is_active', true)
         .single()
 
       if (error) {

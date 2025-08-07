@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
@@ -32,13 +32,18 @@ export default function InvitePage({ params }: InvitePageProps) {
   const [joining, setJoining] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [progress, setProgress] = useState<string>('Initializing...')
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
 
   // Resolve params first
   useEffect(() => {
+    console.log('Params useEffect triggered')
     const resolveParams = async () => {
       try {
+        console.log('Resolving params...')
         const resolvedParams = await params
+        console.log('Params resolved:', resolvedParams)
         setCode(resolvedParams.code)
       } catch (error) {
         console.error('Error resolving params:', error)
@@ -52,32 +57,53 @@ export default function InvitePage({ params }: InvitePageProps) {
 
   // Load invite data once code is available
   useEffect(() => {
-    if (!code) return
+    console.log('Code useEffect triggered, code:', code)
+    if (!code) {
+      console.log('No code available yet, returning')
+      return
+    }
+    
+    console.log('Starting invite loading process...')
     
     // Add timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
       if (loading) {
         console.error('Loading timeout - invite page took too long to load')
         setError('Loading timeout - please try again')
         setLoading(false)
       }
-    }, 10000) // 10 second timeout
+    }, 5000) // 5 second timeout
     
     checkAuthAndLoadInvite()
     
-    return () => clearTimeout(timeoutId)
-  }, [code])
+    return () => {
+      console.log('Cleaning up timeout')
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+    }
+  }, [code]) // Removed loading from dependencies to prevent infinite loop
 
   const checkAuthAndLoadInvite = async () => {
-    if (!code) return
+    console.log('=== checkAuthAndLoadInvite START ===')
+    console.log('Function called with code:', code)
+    
+    if (!code) {
+      console.log('No code provided, returning early')
+      return
+    }
     
     try {
+      console.log('Starting invite loading process for code:', code)
       setLoading(true)
       setError(null)
+      setProgress('Starting...')
 
       // Test mode for debugging
       if (code === 'test') {
         console.log('Running in test mode')
+        setProgress('Loading test data...')
         setInvite({
           id: 'test-invite-id',
           room_id: 'test-room-id',
@@ -98,63 +124,230 @@ export default function InvitePage({ params }: InvitePageProps) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
+        setProgress('Complete')
+        
+        // Clear the timeout since data loaded successfully
+        if (timeoutRef.current) {
+          console.log('Clearing timeout - test mode data loaded successfully')
+          clearTimeout(timeoutRef.current)
+          timeoutRef.current = null
+        }
+        
         setLoading(false)
         return
       }
 
+      // Simple test mode - no async operations
+      if (code === 'simple') {
+        console.log('Running in simple test mode - no async operations')
+        setProgress('Loading simple test data...')
+        
+        // Use setTimeout to simulate async but avoid real async operations
+        setTimeout(() => {
+          setInvite({
+            id: 'simple-invite-id',
+            room_id: 'simple-room-id',
+            code: 'simple',
+            created_by: 'simple-user',
+            created_at: new Date().toISOString(),
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            max_uses: 10,
+            used_count: 0,
+            is_active: true
+          })
+          setRoom({
+            id: 'simple-room-id',
+            name: 'Simple Test Room',
+            description: 'This is a simple test room (no async operations)',
+            is_private: false,
+            created_by: 'simple-user',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          setProgress('Complete')
+          setLoading(false)
+        }, 100)
+        return
+      }
+
+      // Immediate test mode - completely synchronous
+      if (code === 'immediate') {
+        console.log('Running in immediate test mode - completely synchronous')
+        setProgress('Loading immediate test data...')
+        
+        // Set data immediately without any async operations
+        setInvite({
+          id: 'immediate-invite-id',
+          room_id: 'immediate-room-id',
+          code: 'immediate',
+          created_by: 'immediate-user',
+          created_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          max_uses: 10,
+          used_count: 0,
+          is_active: true
+        })
+        setRoom({
+          id: 'immediate-room-id',
+          name: 'Immediate Test Room',
+          description: 'This is an immediate test room (completely synchronous)',
+          is_private: false,
+          created_by: 'immediate-user',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        setProgress('Complete')
+        setLoading(false)
+        return
+      }
+
+      setProgress('Checking configuration...')
+      console.log('Step 1: Checking Supabase configuration...')
       // Check if Supabase is properly configured
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       
+      console.log('Supabase URL:', supabaseUrl)
+      console.log('Supabase Key exists:', !!supabaseKey)
+      
       if (!supabaseUrl || !supabaseKey || 
           supabaseUrl === 'https://placeholder.supabase.co' || 
           supabaseKey === 'placeholder-key') {
+        console.error('Supabase not configured properly')
         setError('Supabase is not properly configured. Please check your environment variables.')
+        
+        // Clear the timeout on error
+        if (timeoutRef.current) {
+          console.log('Clearing timeout - Supabase not configured')
+          clearTimeout(timeoutRef.current)
+          timeoutRef.current = null
+        }
+        
         setLoading(false)
         return
       }
 
+      // Check if Supabase client is properly initialized
+      console.log('Checking Supabase client...')
+      if (!supabase || typeof supabase.auth === 'undefined') {
+        console.error('Supabase client not properly initialized')
+        setError('Database client not properly initialized')
+        
+        // Clear the timeout on error
+        if (timeoutRef.current) {
+          console.log('Clearing timeout - Supabase client not initialized')
+          clearTimeout(timeoutRef.current)
+          timeoutRef.current = null
+        }
+        
+        setLoading(false)
+        return
+      }
+      console.log('Supabase client is properly initialized')
+
+      setProgress('Testing database connection...')
+      console.log('Step 1.5: Testing database connectivity...')
+      // Test database connectivity with a simple query
+      try {
+        const { data: testData, error: testError } = await supabase
+          .from('room_invites')
+          .select('count')
+          .limit(1)
+        
+        if (testError) {
+          console.error('Database connectivity test failed:', testError)
+          setError('Unable to connect to database. Please check your Supabase configuration.')
+          
+          // Clear the timeout on error
+          if (timeoutRef.current) {
+            console.log('Clearing timeout - database connectivity test failed')
+            clearTimeout(timeoutRef.current)
+            timeoutRef.current = null
+          }
+          
+          setLoading(false)
+          return
+        }
+        console.log('Database connectivity test passed')
+      } catch (error) {
+        console.error('Database connectivity test failed:', error)
+        setError('Unable to connect to database. Please check your Supabase configuration.')
+        
+        // Clear the timeout on error
+        if (timeoutRef.current) {
+          console.log('Clearing timeout - database connectivity test failed')
+          clearTimeout(timeoutRef.current)
+          timeoutRef.current = null
+        }
+        
+        setLoading(false)
+        return
+      }
+
+      setProgress('Checking authentication...')
+      console.log('Step 2: Checking user authentication...')
       // Check if user is authenticated
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       
       if (authError) {
         console.error('Auth error:', authError)
         // Don't fail on auth error, just continue without user
+      } else {
+        console.log('User authenticated:', !!user)
       }
       
       setCurrentUser(user)
 
+      setProgress('Loading invite details...')
+      console.log('Step 3: Loading invite details...')
       // Load invite details with retry
       let inviteData = null
       let retries = 3
       
       while (retries > 0 && !inviteData) {
         try {
+          console.log(`Attempting to fetch invite (attempt ${4 - retries}/3)...`)
           inviteData = await InviteService.getInvite(code)
-          if (inviteData) break
+          if (inviteData) {
+            console.log('Invite data loaded successfully:', inviteData)
+            break
+          }
         } catch (error) {
           console.error(`Invite fetch attempt ${4 - retries} failed:`, error)
           retries--
           if (retries > 0) {
+            console.log(`Retrying in 1 second... (${retries} attempts left)`)
             await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second before retry
           }
         }
       }
       
       if (!inviteData) {
+        console.error('Failed to load invite data after all retries')
         setError('Invalid or expired invite link')
+        
+        // Clear the timeout on error
+        if (timeoutRef.current) {
+          console.log('Clearing timeout - failed to load invite data')
+          clearTimeout(timeoutRef.current)
+          timeoutRef.current = null
+        }
+        
         setLoading(false)
         return
       }
 
       setInvite(inviteData)
 
+      setProgress('Loading room details...')
+      console.log('Step 4: Loading room details...')
       // Load room details with retry
       let roomData = null
       retries = 3
       
       while (retries > 0 && !roomData) {
         try {
+          console.log(`Attempting to fetch room (attempt ${4 - retries}/3)...`)
           const { data, error: roomError } = await supabase
             .from('rooms')
             .select('*')
@@ -167,11 +360,15 @@ export default function InvitePage({ params }: InvitePageProps) {
           }
 
           roomData = data
-          if (roomData) break
+          if (roomData) {
+            console.log('Room data loaded successfully:', roomData)
+            break
+          }
         } catch (error) {
           console.error(`Room fetch attempt ${4 - retries} failed:`, error)
           retries--
           if (retries > 0) {
+            console.log(`Retrying in 1 second... (${retries} attempts left)`)
             await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second before retry
           }
         }
@@ -180,15 +377,42 @@ export default function InvitePage({ params }: InvitePageProps) {
       if (roomData) {
         setRoom(roomData)
       } else {
+        console.error('Failed to load room data after all retries')
         setError('Failed to load room details')
+        
+        // Clear the timeout on error
+        if (timeoutRef.current) {
+          console.log('Clearing timeout - failed to load room data')
+          clearTimeout(timeoutRef.current)
+          timeoutRef.current = null
+        }
+        
         setLoading(false)
         return
       }
 
+      setProgress('Complete')
+      console.log('All data loaded successfully, setting loading to false')
+      
+      // Clear the timeout since data loaded successfully
+      if (timeoutRef.current) {
+        console.log('Clearing timeout - data loaded successfully')
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+      
       setLoading(false)
     } catch (error) {
-      console.error('Error loading invite:', error)
+      console.error('Unexpected error in checkAuthAndLoadInvite:', error)
       setError('Failed to load invite details')
+      
+      // Clear the timeout on error as well
+      if (timeoutRef.current) {
+        console.log('Clearing timeout - error occurred')
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+      
       setLoading(false)
     }
   }
@@ -219,15 +443,28 @@ export default function InvitePage({ params }: InvitePageProps) {
   }
 
   const isExpired = invite && invite.expires_at && new Date(invite.expires_at) < new Date()
-  const isMaxedOut = invite && invite.max_uses && invite.used_count >= invite.max_uses
+  const isMaxedOut = invite && invite.max_uses !== null && invite.max_uses !== undefined && invite.max_uses > 0 && invite.used_count >= invite.max_uses
   const isInvalid = !invite || !invite.is_active || isExpired || isMaxedOut
+
+  // Debug validation logic
+  console.log('=== VALIDATION DEBUG ===')
+  console.log('invite:', invite)
+  console.log('invite?.is_active:', invite?.is_active)
+  console.log('invite?.max_uses:', invite?.max_uses)
+  console.log('invite?.used_count:', invite?.used_count)
+  console.log('isExpired:', isExpired)
+  console.log('isMaxedOut:', isMaxedOut)
+  console.log('isInvalid:', isInvalid)
+  console.log('error:', error)
+  console.log('=======================')
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading invite...</p>
+          <p className="text-muted-foreground mb-2">Loading invite...</p>
+          <p className="text-sm text-muted-foreground">{progress}</p>
         </div>
       </div>
     )
