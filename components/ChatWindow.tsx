@@ -160,10 +160,21 @@ export default function ChatWindow({
               >
                 <div className={styles.messageContent}>
                   <div className={styles.messageSender}>
-                    {(message.sender_username || message.sender_name || message.sender_email) ??
-                      (message.sender_id === user.id
-                        ? emailToUsername(user.email) || 'You'
-                        : 'Unknown')}
+                    {(() => {
+                      const explicitUsername = message.sender_username || null
+                      const derivedUsername = message.sender_id === user.id ? emailToUsername(user.email) : null
+                      const username = explicitUsername || derivedUsername || null
+
+                      const explicitFullName = message.sender_name || null
+                      const derivedFullName = message.sender_id === user.id ? (user.user_metadata as any)?.full_name || null : null
+                      const fullName = explicitFullName || derivedFullName || null
+
+                      if (fullName && username) return `${fullName} (${username})`
+                      if (fullName) return fullName
+                      if (username) return username
+                      if (message.sender_email) return emailToUsername(message.sender_email) || message.sender_email
+                      return message.sender_id === user.id ? 'You' : 'Unknown'
+                    })()}
                   </div>
                   <div className={styles.messageText}>{message.content}</div>
                   <div className={styles.messageTime}>

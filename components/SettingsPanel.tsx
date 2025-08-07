@@ -18,6 +18,13 @@ export default function SettingsPanel() {
   const [email, setEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
 
+  const normalizeUsername = (raw: string): string => {
+    const trimmed = (raw || '').trim()
+    if (!trimmed) return ''
+    const withAt = trimmed.startsWith('@') ? trimmed : `@${trimmed}`
+    return withAt.toLowerCase()
+  }
+
   useEffect(() => {
     const load = async () => {
       setLoading(true)
@@ -65,18 +72,35 @@ export default function SettingsPanel() {
     setError(null)
     setMessage(null)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setSavingProfile(false)
+      return
+    }
+
+    const nextUsername = normalizeUsername(username)
+    if (!nextUsername) {
+      setError('Username cannot be empty')
+      setSavingProfile(false)
+      return
+    }
 
     const { error: upErr } = await supabase
       .from('users')
-      .update({ full_name: fullName, username })
+      .update({ full_name: fullName, username: nextUsername })
       .eq('id', user.id)
 
     if (upErr) {
-      setError(upErr.message)
+      const msg = upErr.message?.toLowerCase() || ''
+      const code = (upErr as any)?.code
+      if (code === '23505' || msg.includes('duplicate key') || msg.includes('already exists') || msg.includes('unique')) {
+        setError('That username is already taken. Please choose another.')
+      } else {
+        setError(upErr.message)
+      }
     } else {
       await supabase.auth.updateUser({ data: { full_name: fullName } })
       setMessage('Profile updated')
+      setUsername(nextUsername)
     }
     setSavingProfile(false)
   }
