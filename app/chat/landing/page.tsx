@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabaseServer'
 import { redirect } from 'next/navigation'
+import ChatLayout from '@/components/ChatLayout'
 
 export default async function ChatLandingPage() {
   const supabase = await createServerSupabaseClient()
@@ -28,6 +29,6 @@ export default async function ChatLandingPage() {
     redirect(`/chat/${dm.id}`)
   }
 
-  // No chats yet, go to generic /chat selection UI
-  redirect('/auth/login')
+  // No chats yet, render the chat UI with empty selection
+  return <ChatLayout user={user} />
 }
