@@ -12,6 +12,7 @@ CREATE TABLE public.users (
     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     full_name TEXT,
+    username TEXT GENERATED ALWAYS AS (('@' || split_part(email, '@', 1))) STORED,
     avatar_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -54,6 +55,9 @@ CREATE TABLE public.messages (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     content TEXT NOT NULL,
     sender_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+    sender_name TEXT,
+    sender_email TEXT,
+    sender_username TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     direct_message_id UUID REFERENCES public.direct_messages(id) ON DELETE CASCADE,

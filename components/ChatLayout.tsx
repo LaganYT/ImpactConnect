@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from './Sidebar'
 import ChatWindow from './ChatWindow'
 import { ChatSession } from '@/lib/types'
+import { emailToUsername } from '@/lib/usernames'
 import styles from './ChatLayout.module.css'
 
 interface ChatLayoutProps {
@@ -52,10 +53,12 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
       // Transform data into ChatSession format (placeholder names for DMs)
       const dmSessions: ChatSession[] = dms?.map(dm => {
         const otherUserId = dm.user1_id === user.id ? dm.user2_id : dm.user1_id
+        // Best-effort: if current user, show their own username as context
+        const selfUsername = emailToUsername(user.email) || 'you'
         return {
           id: dm.id,
           type: 'dm',
-          name: `DM with ${otherUserId.slice(0, 6)}`,
+          name: `DM with ${selfUsername}`,
           unread_count: 0
         }
       }) || []
@@ -129,6 +132,9 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
             .insert({
               content,
               sender_id: user.id,
+              sender_name: (user.user_metadata as any)?.full_name || null,
+              sender_email: user.email || null,
+              sender_username: emailToUsername(user.email),
               [selectedChat.type === 'dm' ? 'direct_message_id' : 'room_id']: selectedChat.id
             })
 

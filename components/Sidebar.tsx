@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { ChatSession } from '@/lib/types'
 import { createClient } from '@/lib/supabase'
+import { emailToUsername } from '@/lib/usernames'
 import styles from './Sidebar.module.css'
 import Link from 'next/link'
 
@@ -21,7 +22,7 @@ export default function Sidebar({
   onLogout
 }: SidebarProps) {
   const [showNewChat, setShowNewChat] = useState(false)
-  const [newChatEmail, setNewChatEmail] = useState('')
+  const [newChatUsername, setNewChatUsername] = useState('')
   const [showNewRoom, setShowNewRoom] = useState(false)
   const [newRoomName, setNewRoomName] = useState('')
   const [newRoomDescription, setNewRoomDescription] = useState('')
@@ -33,19 +34,21 @@ export default function Sidebar({
     setLoading(true)
 
     try {
-      // Find user by email
-      const { data: targetUser, error: userError } = await supabase
-        .from('users')
-        .select('id, email, full_name')
-        .eq('email', newChatEmail)
-        .single()
+      // Normalize username input (ensure it starts with @)
+      const username = newChatUsername.trim().startsWith('@')
+        ? newChatUsername.trim()
+        : `@${newChatUsername.trim()}`
 
-      if (userError || !targetUser) {
+      // Resolve user id by username via RPC (bypasses RLS)
+      const { data: resolvedUserId, error: resolveError } = await supabase
+        .rpc('resolve_user_by_username', { p_username: username })
+
+      if (resolveError || !resolvedUserId) {
         alert('User not found')
         return
       }
 
-      if (targetUser.id === user.id) {
+      if (resolvedUserId === user.id) {
         alert('You cannot create a DM with yourself')
         return
       }
@@ -54,7 +57,7 @@ export default function Sidebar({
       const { data: existingDM } = await supabase
         .from('direct_messages')
         .select('id')
-        .or(`and(user1_id.eq.${user.id},user2_id.eq.${targetUser.id}),and(user1_id.eq.${targetUser.id},user2_id.eq.${user.id})`)
+        .or(`and(user1_id.eq.${user.id},user2_id.eq.${resolvedUserId}),and(user1_id.eq.${resolvedUserId},user2_id.eq.${user.id})`)
         .single()
 
       if (existingDM) {
@@ -67,7 +70,7 @@ export default function Sidebar({
         .from('direct_messages')
         .insert({
           user1_id: user.id,
-          user2_id: targetUser.id
+          user2_id: resolvedUserId
         })
         .select()
         .single()
@@ -82,7 +85,7 @@ export default function Sidebar({
     } finally {
       setLoading(false)
       setShowNewChat(false)
-      setNewChatEmail('')
+      setNewChatUsername('')
     }
   }
 
@@ -151,10 +154,10 @@ export default function Sidebar({
       {showNewChat && (
         <form onSubmit={handleNewDM} className={styles.newChatForm}>
           <input
-            type="email"
-            value={newChatEmail}
-            onChange={(e) => setNewChatEmail(e.target.value)}
-            placeholder="Enter user email"
+            type="text"
+            value={newChatUsername}
+            onChange={(e) => setNewChatUsername(e.target.value)}
+            placeholder="Enter username (e.g. @logan)"
             className={styles.input}
             required
           />

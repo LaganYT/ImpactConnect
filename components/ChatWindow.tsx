@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { ChatSession, Message } from '@/lib/types'
 import { createClient } from '@/lib/supabase'
+import { emailToUsername } from '@/lib/usernames'
 import styles from './ChatWindow.module.css'
 
 interface ChatWindowProps {
@@ -158,11 +159,12 @@ export default function ChatWindow({
                 }`}
               >
                 <div className={styles.messageContent}>
-                  {message.sender_id !== user.id && (
-                    <div className={styles.messageSender}>
-                      {message.sender?.full_name || message.sender?.email || 'Unknown'}
-                    </div>
-                  )}
+                  <div className={styles.messageSender}>
+                    {(message.sender_username || message.sender_name || message.sender_email) ??
+                      (message.sender_id === user.id
+                        ? emailToUsername(user.email) || 'You'
+                        : 'Unknown')}
+                  </div>
                   <div className={styles.messageText}>{message.content}</div>
                   <div className={styles.messageTime}>
                     {formatTime(message.created_at)}

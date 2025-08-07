@@ -37,6 +37,9 @@ export interface Message {
   id: string
   content: string
   sender_id: string
+  sender_name?: string
+  sender_email?: string
+  sender_username?: string
   created_at: string
   updated_at: string
   direct_message_id?: string
