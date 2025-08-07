@@ -25,7 +25,7 @@ interface InvitePageProps {
 }
 
 export default function InvitePage({ params }: InvitePageProps) {
-  const { code } = use(params)
+  const [code, setCode] = useState<string | null>(null)
   const [invite, setInvite] = useState<RoomInvite | null>(null)
   const [room, setRoom] = useState<Room | null>(null)
   const [loading, setLoading] = useState(true)
@@ -34,18 +34,113 @@ export default function InvitePage({ params }: InvitePageProps) {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const router = useRouter()
 
+  // Resolve params first
   useEffect(() => {
+    const resolveParams = async () => {
+      try {
+        const resolvedParams = await params
+        setCode(resolvedParams.code)
+      } catch (error) {
+        console.error('Error resolving params:', error)
+        setError('Invalid invite URL')
+        setLoading(false)
+      }
+    }
+    
+    resolveParams()
+  }, [params])
+
+  // Load invite data once code is available
+  useEffect(() => {
+    if (!code) return
+    
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.error('Loading timeout - invite page took too long to load')
+        setError('Loading timeout - please try again')
+        setLoading(false)
+      }
+    }, 10000) // 10 second timeout
+    
     checkAuthAndLoadInvite()
+    
+    return () => clearTimeout(timeoutId)
   }, [code])
 
   const checkAuthAndLoadInvite = async () => {
+    if (!code) return
+    
     try {
+      setLoading(true)
+      setError(null)
+
+      // Test mode for debugging
+      if (code === 'test') {
+        console.log('Running in test mode')
+        setInvite({
+          id: 'test-invite-id',
+          room_id: 'test-room-id',
+          code: 'test',
+          created_by: 'test-user',
+          created_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
+          max_uses: 10,
+          used_count: 0,
+          is_active: true
+        })
+        setRoom({
+          id: 'test-room-id',
+          name: 'Test Room',
+          description: 'This is a test room for debugging',
+          is_private: false,
+          created_by: 'test-user',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        setLoading(false)
+        return
+      }
+
+      // Check if Supabase is properly configured
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      
+      if (!supabaseUrl || !supabaseKey || 
+          supabaseUrl === 'https://placeholder.supabase.co' || 
+          supabaseKey === 'placeholder-key') {
+        setError('Supabase is not properly configured. Please check your environment variables.')
+        setLoading(false)
+        return
+      }
+
       // Check if user is authenticated
-      const { data: { user } } = await (supabase.auth as any).getUser()
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      
+      if (authError) {
+        console.error('Auth error:', authError)
+        // Don't fail on auth error, just continue without user
+      }
+      
       setCurrentUser(user)
 
-      // Load invite details
-      const inviteData = await InviteService.getInvite(code)
+      // Load invite details with retry
+      let inviteData = null
+      let retries = 3
+      
+      while (retries > 0 && !inviteData) {
+        try {
+          inviteData = await InviteService.getInvite(code)
+          if (inviteData) break
+        } catch (error) {
+          console.error(`Invite fetch attempt ${4 - retries} failed:`, error)
+          retries--
+          if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second before retry
+          }
+        }
+      }
+      
       if (!inviteData) {
         setError('Invalid or expired invite link')
         setLoading(false)
@@ -54,15 +149,40 @@ export default function InvitePage({ params }: InvitePageProps) {
 
       setInvite(inviteData)
 
-      // Load room details
-      const { data: roomData } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('id', inviteData.room_id)
-        .single()
+      // Load room details with retry
+      let roomData = null
+      retries = 3
+      
+      while (retries > 0 && !roomData) {
+        try {
+          const { data, error: roomError } = await supabase
+            .from('rooms')
+            .select('*')
+            .eq('id', inviteData.room_id)
+            .single()
+
+          if (roomError) {
+            console.error('Error loading room:', roomError)
+            throw roomError
+          }
+
+          roomData = data
+          if (roomData) break
+        } catch (error) {
+          console.error(`Room fetch attempt ${4 - retries} failed:`, error)
+          retries--
+          if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second before retry
+          }
+        }
+      }
 
       if (roomData) {
         setRoom(roomData)
+      } else {
+        setError('Failed to load room details')
+        setLoading(false)
+        return
       }
 
       setLoading(false)
@@ -82,7 +202,7 @@ export default function InvitePage({ params }: InvitePageProps) {
 
     setJoining(true)
     try {
-      const result = await InviteService.useInvite(code, currentUser.id)
+      const result = await InviteService.useInvite(code!, currentUser.id)
       
       if (result.success) {
         // Redirect to the room
@@ -219,7 +339,7 @@ export default function InvitePage({ params }: InvitePageProps) {
             </Button>
           ) : (
             <Button
-              onClick={async () => router.push(`/?redirect=/invite/${(await params).code}`)}
+              onClick={() => router.push(`/?redirect=/invite/${code}`)}
               className="w-full flex items-center justify-center gap-2"
             >
               Sign In to Join

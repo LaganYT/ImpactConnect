@@ -45,6 +45,8 @@ export class InviteService {
   // Get invite by code
   static async getInvite(code: string): Promise<RoomInvite | null> {
     try {
+      console.log('Fetching invite with code:', code)
+      
       const { data, error } = await supabase
         .from('room_invites')
         .select('*')
@@ -52,7 +54,12 @@ export class InviteService {
         .eq('is_active', true)
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Database error fetching invite:', error)
+        throw error
+      }
+      
+      console.log('Invite data:', data)
       return data
     } catch (error) {
       console.error('Error getting invite:', error)
