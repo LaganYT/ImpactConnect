@@ -13,13 +13,15 @@ interface SidebarProps {
   chatSessions: ChatSession[]
   selectedChat: ChatSession | null
   onLogout: () => void
+  onOpenSettings?: () => void
 }
 
 export default function Sidebar({
   user,
   chatSessions,
   selectedChat,
-  onLogout
+  onLogout,
+  onOpenSettings
 }: SidebarProps) {
   const [showNewChat, setShowNewChat] = useState(false)
   const [newChatUsername, setNewChatUsername] = useState('')
@@ -131,9 +133,25 @@ export default function Sidebar({
             <p className={styles.userEmail}>{user.email}</p>
           </div>
         </div>
-        <button onClick={onLogout} className={styles.logoutButton}>
-          Logout
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => onOpenSettings && onOpenSettings()}
+            className={styles.logoutButton}
+            title="Settings"
+            aria-label="Settings"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M19.14,12.94a7.43,7.43,0,0,0,.05-.94,7.43,7.43,0,0,0-.05-.94l2.11-1.65a.5.5,0,0,0,.12-.64l-2-3.46a.5.5,0,0,0-.6-.22l-2.49,1a7.28,7.28,0,0,0-1.63-.94l-.38-2.65A.5.5,0,0,0,13.66,1H10.34a.5.5,0,0,0-.49.41L9.47,4.06a7.28,7.28,0,0,0-1.63.94l-2.49-1a.5.5,0,0,0-.6.22l-2,3.46a.5.5,0,0,0,.12.64L4.86,11.06a7.43,7.43,0,0,0-.05.94,7.43,7.43,0,0,0,.05.94L2.75,14.59a.5.5,0,0,0-.12.64l2,3.46a.5.5,0,0,0,.6.22l2.49-1a7.28,7.28,0,0,0,1.63.94l.38,2.65a.5.5,0,0,0,.49.41h3.32a.5.5,0,0,0,.49-.41l.38-2.65a7.28,7.28,0,0,0,1.63-.94l2.49,1a.5.5,0,0,0,.6-.22l2-3.46a.5.5,0,0,0-.12-.64ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/>
+            </svg>
+          </button>
+          <button onClick={onLogout} className={styles.logoutButton} title="Logout" aria-label="Logout">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M10 17l1.41-1.41L8.83 13H21v-2H8.83l2.58-2.59L10 7l-5 5 5 5z"/>
+              <path d="M3 19h6v2H1V3h8v2H3z"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className={styles.actions}>

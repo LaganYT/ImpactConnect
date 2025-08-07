@@ -5,6 +5,8 @@ import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase'
 import Sidebar from './Sidebar'
 import ChatWindow from './ChatWindow'
+import SettingsPanel from './SettingsPanel'
+import Modal from './Modal'
 import { ChatSession } from '@/lib/types'
 import { emailToUsername } from '@/lib/usernames'
 import styles from './ChatLayout.module.css'
@@ -18,6 +20,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
   const [selectedChat, setSelectedChat] = useState<ChatSession | null>(null)
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [loading, setLoading] = useState(true)
+  const [showSettings, setShowSettings] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -120,8 +123,15 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
         chatSessions={chatSessions}
         selectedChat={selectedChat}
         onLogout={handleLogout}
+        onOpenSettings={() => setShowSettings(true)}
       />
-      <ChatWindow
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 12px', borderBottom: '1px solid #e5e7eb', background: '#fff' }}>
+          <button onClick={() => setShowSettings(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }} aria-label="Settings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94a7.43,7.43,0,0,0,.05-.94,7.43,7.43,0,0,0-.05-.94l2.11-1.65a.5.5,0,0,0,.12-.64l-2-3.46a.5.5,0,0,0-.6-.22l-2.49,1a7.28,7.28,0,0,0-1.63-.94l-.38-2.65A.5.5,0,0,0,13.66,1H10.34a.5.5,0,0,0-.49.41L9.47,4.06a7.28,7.28,0,0,0-1.63.94l-2.49-1a.5.5,0,0,0-.6.22l-2,3.46a.5.5,0,0,0,.12.64L4.86,11.06a7.43,7.43,0,0,0-.05.94,7.43,7.43,0,0,0,.05.94L2.75,14.59a.5.5,0,0,0-.12.64l2,3.46a.5.5,0,0,0,.6.22l2.49-1a7.28,7.28,0,0,0,1.63.94l.38,2.65a.5.5,0,0,0,.49.41h3.32a.5.5,0,0,0,.49-.41l.38-2.65a7.28,7.28,0,0,0,1.63-.94l2.49,1a.5.5,0,0,0,.6-.22l2-3.46a.5.5,0,0,0-.12-.64ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg>
+          </button>
+        </div>
+        <ChatWindow
         user={user}
         selectedChat={selectedChat}
         onSendMessage={async (content) => {
@@ -142,7 +152,13 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
             console.error('Error sending message:', error)
           }
         }}
-      />
+        />
+        {showSettings && (
+          <Modal open={showSettings} title="Settings" onClose={() => setShowSettings(false)}>
+            <SettingsPanel />
+          </Modal>
+        )}
+      </div>
     </div>
   )
 } 
