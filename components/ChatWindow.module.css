@@ -1,0 +1,283 @@
+.chatWindow {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: white;
+}
+
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #666;
+  padding: 40px;
+}
+
+.emptyIcon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.emptyState h2 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 16px;
+}
+
+.header {
+  padding: 20px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: white;
+}
+
+.chatInfo {
+  flex: 1;
+}
+
+.chatName {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.chatType {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.roomActions {
+  display: flex;
+  gap: 8px;
+}
+
+.inviteButton {
+  padding: 8px 16px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.inviteButton:hover {
+  background: #5a6fd8;
+}
+
+.messagesContainer {
+  flex: 1;
+  overflow-y: auto;
+  background: #f8fafc;
+  position: relative;
+}
+
+.loadingMessages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  color: #666;
+}
+
+.loadingSpinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.messages {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.message {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.message.ownMessage {
+  flex-direction: row-reverse;
+}
+
+.messageContent {
+  max-width: 70%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.messageSender {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.messageText {
+  background: white;
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #1a1a1a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  word-wrap: break-word;
+}
+
+.ownMessage .messageText {
+  background: #667eea;
+  color: white;
+}
+
+.messageTime {
+  font-size: 11px;
+  color: #999;
+  align-self: flex-end;
+  margin-top: 2px;
+}
+
+.ownMessage .messageTime {
+  align-self: flex-start;
+}
+
+.messageForm {
+  padding: 20px;
+  border-top: 1px solid #e2e8f0;
+  background: white;
+}
+
+.inputContainer {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.messageInput {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 24px;
+  font-size: 14px;
+  background: white;
+  transition: border-color 0.2s ease;
+  resize: none;
+  min-height: 24px;
+  max-height: 120px;
+}
+
+.messageInput:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.messageInput:disabled {
+  background: #f1f5f9;
+  cursor: not-allowed;
+}
+
+.sendButton {
+  width: 40px;
+  height: 40px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.sendButton:hover:not(:disabled) {
+  background: #5a6fd8;
+  transform: scale(1.05);
+}
+
+.sendButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.sendIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.sendingSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 16px;
+  }
+  
+  .chatName {
+    font-size: 16px;
+  }
+  
+  .messages {
+    padding: 16px;
+    gap: 12px;
+  }
+  
+  .messageContent {
+    max-width: 85%;
+  }
+  
+  .messageForm {
+    padding: 16px;
+  }
+  
+  .inputContainer {
+    gap: 8px;
+  }
+  
+  .sendButton {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .sendIcon {
+    width: 18px;
+    height: 18px;
+  }
+} 
