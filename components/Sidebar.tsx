@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { ChatSession } from '@/lib/types'
 import { createClient } from '@/lib/supabase'
@@ -29,6 +29,15 @@ export default function Sidebar({
   const [newRoomName, setNewRoomName] = useState('')
   const [newRoomDescription, setNewRoomDescription] = useState('')
   const [loading, setLoading] = useState(false)
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean
+    x: number
+    y: number
+    roomId?: string
+    roomName?: string
+  }>({ visible: false, x: 0, y: 0 })
+  const [editingRoom, setEditingRoom] = useState<{ id: string; name: string } | null>(null)
+  const contextMenuRef = useRef<HTMLDivElement | null>(null)
   const supabase = createClient()
 
   const handleNewDM = async (e: React.FormEvent) => {
@@ -116,6 +125,77 @@ export default function Sidebar({
       setShowNewRoom(false)
       setNewRoomName('')
       setNewRoomDescription('')
+    }
+  }
+
+  // Close context menu on click outside or Escape
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      if (!contextMenu.visible) return
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu({ visible: false, x: 0, y: 0 })
+      }
+    }
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setContextMenu({ visible: false, x: 0, y: 0 })
+    }
+    window.addEventListener('click', handleGlobalClick)
+    window.addEventListener('keydown', handleEsc)
+    return () => {
+      window.removeEventListener('click', handleGlobalClick)
+      window.removeEventListener('keydown', handleEsc)
+    }
+  }, [contextMenu.visible])
+
+  const onRightClickRoom = (e: React.MouseEvent, roomId: string, roomName: string, isOwner?: boolean) => {
+    if (!isOwner) return // Only owners get a context menu for rooms
+    e.preventDefault()
+    setContextMenu({ visible: true, x: e.clientX, y: e.clientY, roomId, roomName })
+  }
+
+  const handleEditRoomName = () => {
+    if (!contextMenu.roomId || !contextMenu.roomName) return
+    setEditingRoom({ id: contextMenu.roomId, name: contextMenu.roomName })
+    setContextMenu({ visible: false, x: 0, y: 0 })
+  }
+
+  const submitEditRoomName = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingRoom) return
+    try {
+      setLoading(true)
+      const { error } = await supabase
+        .from('rooms')
+        .update({ name: editingRoom.name })
+        .eq('id', editingRoom.id)
+      if (error) throw error
+      window.location.reload()
+    } catch (err) {
+      console.error('Failed to rename room', err)
+      alert('Failed to rename room')
+    } finally {
+      setLoading(false)
+      setEditingRoom(null)
+    }
+  }
+
+  const handleDeleteRoom = async () => {
+    if (!contextMenu.roomId) return
+    if (!confirm('Delete this room? This will remove all messages and members.')) return
+    try {
+      setLoading(true)
+      const { error } = await supabase
+        .from('rooms')
+        .delete()
+        .eq('id', contextMenu.roomId)
+      if (error) throw error
+      window.location.href = '/chat/landing'
+    } catch (err) {
+      console.error('Failed to delete room', err)
+      alert('Failed to delete room')
+    } finally {
+      setLoading(false)
+      setContextMenu({ visible: false, x: 0, y: 0 })
     }
   }
 
@@ -260,6 +340,7 @@ export default function Sidebar({
                 selectedChat?.id === chat.id ? styles.selected : ''
               }`}
               href={`/chat/${chat.id}`}
+              onContextMenu={(e) => onRightClickRoom(e, chat.id, chat.name, chat.isOwner)}
             >
               <div className={styles.roomAvatar}>
                 #
@@ -273,6 +354,52 @@ export default function Sidebar({
             </Link>
           ))}
       </div>
+
+      {/* Context Menu */}
+      {contextMenu.visible && (
+        <div
+          ref={contextMenuRef}
+          className={styles.contextMenu}
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          role="menu"
+        >
+          <button className={styles.contextMenuItem} onClick={handleEditRoomName} role="menuitem">
+            Edit room name
+          </button>
+          <button className={`${styles.contextMenuItem} ${styles.danger}`} onClick={handleDeleteRoom} role="menuitem">
+            Delete room
+          </button>
+        </div>
+      )}
+
+      {/* Rename Room Modal (simple inline form) */}
+      {editingRoom && (
+        <div className={styles.newRoomForm} style={{ borderTop: '1px solid #e2e8f0' }}>
+          <form onSubmit={submitEditRoomName}>
+            <input
+              type="text"
+              className={styles.input}
+              value={editingRoom.name}
+              onChange={(e) => setEditingRoom({ id: editingRoom.id, name: e.target.value })}
+              placeholder="New room name"
+              required
+              autoFocus
+            />
+            <div className={styles.formActions}>
+              <button type="submit" disabled={loading} className={styles.submitButton}>
+                {loading ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingRoom(null)}
+                className={styles.cancelButton}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 } 

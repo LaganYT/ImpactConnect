@@ -49,7 +49,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
       // Fetch rooms directly; RLS should filter to only rooms the user can see
       const { data: rooms, error: roomError } = await supabase
         .from('rooms')
-        .select('id, name, description, created_at, updated_at, is_private, invite_code')
+        .select('id, name, description, created_at, updated_at, is_private, invite_code, created_by')
 
       if (roomError) throw roomError
 
@@ -71,7 +71,8 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
         type: 'room',
         name: rm.name,
         inviteCode: rm.invite_code,
-        unread_count: 0
+        unread_count: 0,
+        isOwner: rm.created_by === user.id
       })) || []
 
       setChatSessions([...dmSessions, ...roomSessions])

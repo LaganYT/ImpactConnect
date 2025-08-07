@@ -55,4 +55,6 @@ export interface ChatSession {
   unread_count: number
   participants?: User[]
   inviteCode?: string
+  // True if the current session user is the owner/creator of the room
+  isOwner?: boolean
 } 
