@@ -1,4 +1,3 @@
 ## TODO
 
-- Notifications
 - Dark mode
