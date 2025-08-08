@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { User } from '@supabase/supabase-js'
+import { User, type RealtimeChannel } from '@supabase/supabase-js'
 import { ChatSession, Message } from '@/lib/types'
 import { createClient } from '@/lib/supabase'
 import { emailToUsername } from '@/lib/usernames'
@@ -42,6 +42,11 @@ export default function ChatWindow({
   const [readByMap, setReadByMap] = useState<Record<string, string[]>>({})
   const [isWindowFocused, setIsWindowFocused] = useState(true)
   const [isTabVisible, setIsTabVisible] = useState(true)
+  // Typing indicator state
+  const [typingOthers, setTypingOthers] = useState<string[]>([])
+  const typingChannelRef = useRef<RealtimeChannel | null>(null)
+  const typingTimeoutRef = useRef<number | null>(null)
+  const isTypingRef = useRef<boolean>(false)
 
   // Track focus/visibility to control when reads are recorded
   useEffect(() => {
@@ -71,9 +76,11 @@ export default function ChatWindow({
     fetchMessages()
     const cleanupMsg = setupMessageSubscription()
     const cleanupReads = setupReadReceiptsSubscription()
+    const cleanupTyping = setupTypingPresence()
     return () => {
       if (typeof cleanupMsg === 'function') cleanupMsg()
       if (typeof cleanupReads === 'function') cleanupReads()
+      if (typeof cleanupTyping === 'function') cleanupTyping()
     }
   }, [selectedChat])
 
@@ -88,6 +95,23 @@ export default function ChatWindow({
       // Delay to allow DOM to paint
       setTimeout(() => scrollToBottom(false), 0)
     }
+  }, [selectedChat, loading])
+
+  // Auto-focus the message input when entering a chat and after messages load
+  useEffect(() => {
+    if (!selectedChat) return
+    if (loading) return
+    const input = messageInputRef.current
+    if (!input) return
+    // Defer to ensure element is laid out
+    const id = window.setTimeout(() => {
+      try {
+        input.focus()
+        const len = input.value.length
+        input.setSelectionRange(len, len)
+      } catch {}
+    }, 0)
+    return () => window.clearTimeout(id)
   }, [selectedChat, loading])
 
   // If there are images, scroll again once they finish loading to ensure bottom stays in view
@@ -109,6 +133,26 @@ export default function ChatWindow({
       })
     }
   }, [messages, selectedChat])
+
+  // Ensure the message input is focused when entering or switching chats
+  useEffect(() => {
+    if (!selectedChat) return
+    const focusInput = () => {
+      const el = messageInputRef.current
+      if (!el) return
+      el.focus()
+      try {
+        const length = el.value.length
+        el.setSelectionRange(length, length)
+      } catch {}
+    }
+    // Focus immediately and after paint
+    focusInput()
+    const id = window.setTimeout(focusInput, 0)
+    return () => {
+      window.clearTimeout(id)
+    }
+  }, [selectedChat])
 
   const fetchMessages = async () => {
     if (!selectedChat) return
@@ -215,11 +259,101 @@ export default function ChatWindow({
     }
   }
 
+  // Compute a display label for current user to share over presence
+  const getCurrentUserDisplayName = () => {
+    const fullName = (user.user_metadata as { full_name?: string } | undefined)?.full_name || null
+    const email = user.email || ''
+    const username = emailToUsername(email)
+    return fullName ? `${fullName} (${username})` : (username || 'Someone')
+  }
+
+  const setupTypingPresence = () => {
+    if (!selectedChat) return
+
+    // Clean any existing typing channel before creating a new one
+    if (typingChannelRef.current) {
+      try {
+        supabase.removeChannel(typingChannelRef.current)
+      } catch {}
+      typingChannelRef.current = null
+    }
+
+    const channel = supabase.channel(`typing:${selectedChat.id}`, {
+      config: { presence: { key: user.id } }
+    })
+
+    channel.on('presence', { event: 'sync' }, () => {
+      try {
+        const state = channel.presenceState() as Record<string, Array<{ typing?: boolean; name?: string }>>
+        const names: string[] = []
+        Object.entries(state).forEach(([key, metas]) => {
+          if (key === user.id) return
+          const latest = metas[metas.length - 1]
+          if (latest?.typing && latest?.name) names.push(latest.name)
+        })
+        setTypingOthers(names)
+      } catch {
+        setTypingOthers([])
+      }
+    })
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        channel.track({ typing: false, name: getCurrentUserDisplayName(), chatId: selectedChat.id })
+      }
+    })
+
+    typingChannelRef.current = channel
+
+    return () => {
+      // Ensure we clear our typing state and remove channel
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+        typingTimeoutRef.current = null
+      }
+      isTypingRef.current = false
+      try {
+        supabase.removeChannel(channel)
+      } catch {}
+      typingChannelRef.current = null
+      setTypingOthers([])
+    }
+  }
+
+  const startTyping = () => {
+    const channel = typingChannelRef.current
+    if (!channel || !selectedChat) return
+    if (!isTypingRef.current) {
+      channel.track({ typing: true, name: getCurrentUserDisplayName(), chatId: selectedChat.id })
+      isTypingRef.current = true
+    }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+    }
+    typingTimeoutRef.current = window.setTimeout(() => {
+      stopTyping()
+    }, 2000)
+  }
+
+  const stopTyping = () => {
+    const channel = typingChannelRef.current
+    if (!channel || !selectedChat) return
+    if (isTypingRef.current) {
+      channel.track({ typing: false, name: getCurrentUserDisplayName(), chatId: selectedChat.id })
+      isTypingRef.current = false
+    }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+      typingTimeoutRef.current = null
+    }
+  }
+
   const sendCurrentMessage = async () => {
     if (!newMessage.trim() || !selectedChat) return
     setSending(true)
     try {
       await onSendMessage(newMessage.trim())
+      stopTyping()
       setNewMessage('')
       // reset textarea height after send
       if (messageInputRef.current) {
@@ -229,6 +363,10 @@ export default function ChatWindow({
       console.error('Error sending message:', error)
     } finally {
       setSending(false)
+      // Return focus to the message input after sending
+      try {
+        messageInputRef.current?.focus()
+      } catch {}
     }
   }
 
@@ -319,11 +457,15 @@ export default function ChatWindow({
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
+  // Fix: handle empty or invalid URLs gracefully
   const extractUrlParts = (url: string): { filename: string | null; extension: string | null; host: string | null } => {
+    if (!url || typeof url !== 'string') {
+      return { filename: null, extension: null, host: null }
+    }
     try {
       const u = new URL(url)
       const pathname = decodeURIComponent(u.pathname || '')
-      const segments = pathname.split('/')
+      const segments = pathname.split('/').filter(Boolean)
       const filename = segments[segments.length - 1] || null
       const match = filename ? filename.match(/\.([a-z0-9]+)(?:\?.*)?$/i) : null
       const extension = match ? match[1].toLowerCase() : null
@@ -538,6 +680,16 @@ export default function ChatWindow({
       </div>
 
       <form onSubmit={handleSendMessage} className={styles.messageForm}>
+        {typingOthers.length > 0 && (
+          <div className={styles.typingIndicator} aria-live="polite">
+            {(() => {
+              const names = typingOthers
+              if (names.length === 1) return `${names[0]} is typing...`
+              if (names.length === 2) return `${names[0]} and ${names[1]} are typing...`
+              return 'Several people are typing...'
+            })()}
+          </div>
+        )}
         <div className={styles.inputContainer}>
           <input
             type="file"
@@ -571,6 +723,7 @@ export default function ChatWindow({
             onChange={(e) => {
               setNewMessage(e.target.value)
               autoResizeTextArea(e.currentTarget)
+              startTyping()
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -579,6 +732,9 @@ export default function ChatWindow({
                   void sendCurrentMessage()
                 }
               }
+            }}
+            onBlur={() => {
+              stopTyping()
             }}
             placeholder="Type a message..."
             className={styles.messageInput}
