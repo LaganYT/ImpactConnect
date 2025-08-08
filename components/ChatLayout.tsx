@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
@@ -24,11 +24,59 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
   const [showSettings, setShowSettings] = useState(false)
   const supabase = createClient()
 
+  // Track window focus/visibility to avoid noisy notifications
+  const [isWindowFocused, setIsWindowFocused] = useState(true)
+  const [hasNotificationPermission, setHasNotificationPermission] = useState<boolean>(false)
+
+  // Refs to avoid stale closures in realtime callbacks
+  const selectedChatRef = useRef<ChatSession | null>(null)
+  const chatSessionsRef = useRef<ChatSession[]>([])
+  const isWindowFocusedRef = useRef<boolean>(true)
+  const userIdRef = useRef<string>(user.id)
+
   useEffect(() => {
     fetchChatSessions()
     const cleanup = setupRealtimeSubscriptions()
     return () => {
       if (typeof cleanup === 'function') cleanup()
+    }
+  }, [])
+
+  // Keep refs in sync
+  useEffect(() => {
+    selectedChatRef.current = selectedChat
+  }, [selectedChat])
+
+  useEffect(() => {
+    chatSessionsRef.current = chatSessions
+  }, [chatSessions])
+
+  useEffect(() => {
+    isWindowFocusedRef.current = isWindowFocused
+  }, [isWindowFocused])
+
+  // Track window focus and request notifications
+  useEffect(() => {
+    const handleFocus = () => setIsWindowFocused(true)
+    const handleBlur = () => setIsWindowFocused(false)
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('blur', handleBlur)
+
+    // Initialize notification permission on mount
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        setHasNotificationPermission(Notification.permission === 'granted')
+        if (Notification.permission === 'default') {
+          Notification.requestPermission().then((perm) => {
+            setHasNotificationPermission(perm === 'granted')
+          }).catch(() => {})
+        }
+      } catch {}
+    }
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('blur', handleBlur)
     }
   }, [])
 
@@ -96,18 +144,68 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
   }
 
   const setupRealtimeSubscriptions = () => {
-    // Subscribe to new messages
+    // Subscribe to new messages (RLS ensures only messages user can view)
     const messagesSubscription = supabase
       .channel('messages')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages'
-      }, (payload) => {
-        // Handle new message
-        console.log('New message:', payload)
-        // Update chat sessions and current chat if needed
-      })
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload) => {
+          const message = payload.new as unknown as {
+            id: string
+            content: string
+            sender_id: string
+            sender_name?: string | null
+            sender_username?: string | null
+            room_id?: string | null
+            direct_message_id?: string | null
+          }
+
+          // Ignore messages sent by the current user
+          if (!message || message.sender_id === userIdRef.current) return
+
+          const targetChatId = message.room_id || message.direct_message_id
+          if (!targetChatId) return
+
+          // Only notify if
+          // - notification permission granted
+          // - window not focused OR user is not already viewing this chat
+          const permissionOk = hasNotificationPermission || (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted')
+          if (!permissionOk) return
+
+          const isViewingThisChat = selectedChatRef.current?.id === targetChatId
+          const shouldNotify = !isWindowFocusedRef.current || !isViewingThisChat
+          if (!shouldNotify) return
+
+          // Find session name for title
+          const session = chatSessionsRef.current.find((s) => s.id === targetChatId)
+          const title = session ? session.name : 'New message'
+
+          const senderLabel = message.sender_username || message.sender_name || 'Someone'
+          const body = `${senderLabel}: ${message.content}`
+
+          try {
+            const notif = new Notification(title, {
+              body,
+            })
+            notif.onclick = () => {
+              try {
+                window.focus()
+              } catch {}
+              if (window.location.pathname !== `/chat/${targetChatId}`) {
+                window.location.href = `/chat/${targetChatId}`
+              }
+              try { notif.close() } catch {}
+            }
+          } catch (e) {
+            // Silently ignore if notifications fail
+          }
+        }
+      )
       .subscribe()
 
     return () => {
