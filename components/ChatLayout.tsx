@@ -53,17 +53,26 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
 
       if (roomError) throw roomError
 
-      // Transform data into ChatSession format (placeholder names for DMs)
-      const dmSessions: ChatSession[] = dms?.map(dm => {
-        // Best-effort: if current user, show their own username as context
-        const selfUsername = emailToUsername(user.email) || 'you'
-        return {
+      // For DMs: fetch partner usernames to label as "DM with [partner]"
+      const dmSessions: ChatSession[] = []
+      for (const dm of (dms || [])) {
+        const partnerId = dm.user1_id === user.id ? dm.user2_id : dm.user1_id
+        let partnerName = 'Unknown'
+        try {
+          const { data: partner } = await supabase
+            .from('users')
+            .select('username, email')
+            .eq('id', partnerId)
+            .maybeSingle()
+          partnerName = partner?.username || (partner?.email ? (emailToUsername(partner.email) || partner.email) : 'Unknown')
+        } catch {}
+        dmSessions.push({
           id: dm.id,
           type: 'dm',
-          name: `DM with ${selfUsername}`,
+          name: `DM with ${partnerName}`,
           unread_count: 0
-        }
-      }) || []
+        })
+      }
 
       const roomSessions: ChatSession[] = rooms?.map((rm: Room) => ({
         id: rm.id,

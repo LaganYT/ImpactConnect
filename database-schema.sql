@@ -126,6 +126,16 @@ CREATE POLICY "Users can view their own profile" ON public.users
 CREATE POLICY "Users can update their own profile" ON public.users
     FOR UPDATE USING (auth.uid() = id);
 
+-- Allow viewing basic profiles of DM partners
+CREATE POLICY "Users can view DM partners' profiles" ON public.users
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM public.direct_messages dm
+            WHERE (dm.user1_id = auth.uid() AND dm.user2_id = users.id)
+               OR (dm.user2_id = auth.uid() AND dm.user1_id = users.id)
+        )
+    );
+
 -- RLS Policies for direct_messages
 CREATE POLICY "Users can view DMs they are part of" ON public.direct_messages
     FOR SELECT USING (auth.uid() = user1_id OR auth.uid() = user2_id);
