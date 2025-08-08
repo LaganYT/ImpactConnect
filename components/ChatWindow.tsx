@@ -251,8 +251,33 @@ export default function ChatWindow({
       setUploadingFile(true)
       const form = new FormData()
       form.append('file', file)
-      const endpoint = file.type?.startsWith('image/') ? '/api/imgbb-upload' : '/api/filebin-upload'
-      const res = await fetch(endpoint, { method: 'POST', body: form })
+      const isImage = file.type?.startsWith('image/')
+      // Primary endpoint for images is imgbb; otherwise Filebin
+      const primaryEndpoint = isImage ? '/api/imgbb-upload' : '/api/filebin-upload'
+      let res = await fetch(primaryEndpoint, { method: 'POST', body: form })
+      if (!res.ok && isImage) {
+        const raw = await res.text().catch(() => '')
+        const lower = raw.toLowerCase()
+        const isTooLarge =
+          res.status === 413 ||
+          lower.includes('request entity too large') ||
+          lower.includes('payload too large') ||
+          lower.includes('function_payload_too_large')
+        if (isTooLarge) {
+          // Fallback to Filebin for large images
+          res = await fetch('/api/filebin-upload', { method: 'POST', body: form })
+        } else {
+          // Non-size error; surface as-is
+          try {
+            const parsed = raw ? JSON.parse(raw) : null
+            const detail = parsed?.details?.api?.status || parsed?.details?.web?.status
+            const msg = parsed?.error || raw || 'Failed to upload file'
+            throw new Error(detail ? `${msg} (status ${detail})` : msg)
+          } catch {
+            throw new Error(raw || 'Failed to upload file')
+          }
+        }
+      }
       if (!res.ok) {
         const raw = await res.text().catch(() => '')
         try {
