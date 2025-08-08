@@ -25,6 +25,7 @@ export default function ChatWindow({
   const [uploadingImage, setUploadingImage] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
   const [readByMap, setReadByMap] = useState<Record<string, string[]>>({})
 
@@ -42,6 +43,35 @@ export default function ChatWindow({
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // When switching/opening a chat and after initial load completes, snap to bottom
+  useEffect(() => {
+    if (!selectedChat) return
+    if (!loading) {
+      // Delay to allow DOM to paint
+      setTimeout(() => scrollToBottom(false), 0)
+    }
+  }, [selectedChat, loading])
+
+  // If there are images, scroll again once they finish loading to ensure bottom stays in view
+  useEffect(() => {
+    const container = messagesContainerRef.current
+    if (!container) return
+    const images: HTMLImageElement[] = Array.from(container.querySelectorAll('img'))
+    if (images.length === 0) return
+    const onLoad = () => scrollToBottom(false)
+    images.forEach((img) => {
+      if (img.complete) return
+      img.addEventListener('load', onLoad)
+      img.addEventListener('error', onLoad)
+    })
+    return () => {
+      images.forEach((img) => {
+        img.removeEventListener('load', onLoad)
+        img.removeEventListener('error', onLoad)
+      })
+    }
+  }, [messages, selectedChat])
 
   const fetchMessages = async () => {
     if (!selectedChat) return
@@ -152,8 +182,8 @@ export default function ChatWindow({
     }
   }
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const scrollToBottom = (smooth: boolean = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' })
   }
 
   const formatTime = (timestamp: string) => {
@@ -212,7 +242,7 @@ export default function ChatWindow({
         )}
       </div>
 
-      <div className={styles.messagesContainer}>
+      <div className={styles.messagesContainer} ref={messagesContainerRef}>
         {loading ? (
           <div className={styles.loadingMessages}>
             <div className={styles.loadingSpinner}></div>
