@@ -1,11 +1,20 @@
-'use client'
+ 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import { User, type RealtimeChannel } from '@supabase/supabase-js'
 import { ChatSession, Message } from '@/lib/types'
 import { createClient } from '@/lib/supabase'
 import { emailToUsername } from '@/lib/usernames'
 import styles from './ChatWindow.module.css'
+
+// Lazy-load emoji picker on the client
+const EmojiPicker = dynamic(() => import('emoji-picker-react').then(mod => mod.default), { ssr: false }) as unknown as React.ComponentType<{
+  onEmojiClick: (emojiData: { emoji: string }) => void
+  width?: number | string
+  height?: number | string
+  theme?: 'dark' | 'light' | 'auto'
+}>
 
 interface ChatWindowProps {
   user: User
@@ -36,6 +45,7 @@ export default function ChatWindow({
   const [uploadingFile, setUploadingFile] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null)
+  const emojiContainerRef = useRef<HTMLDivElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
@@ -52,6 +62,8 @@ export default function ChatWindow({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState<string>('')
   const [isRoomAdmin, setIsRoomAdmin] = useState<boolean>(false)
+  // Emoji picker state
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   // Typing indicator state
   const [typingOthers, setTypingOthers] = useState<string[]>([])
   const typingChannelRef = useRef<RealtimeChannel | null>(null)
@@ -93,6 +105,26 @@ export default function ChatWindow({
       if (typeof cleanupTyping === 'function') cleanupTyping()
     }
   }, [selectedChat])
+
+  // Close emoji picker when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!showEmojiPicker) return
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node | null
+      if (emojiContainerRef.current && target && !emojiContainerRef.current.contains(target)) {
+        setShowEmojiPicker(false)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowEmojiPicker(false)
+    }
+    document.addEventListener('click', onDocClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('click', onDocClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [showEmojiPicker])
 
   // Determine if current user is admin of the selected room (for delete permissions)
   useEffect(() => {
@@ -453,6 +485,31 @@ export default function ChatWindow({
     el.style.height = 'auto'
     const next = Math.min(el.scrollHeight, maxHeight)
     el.style.height = `${next}px`
+  }
+
+  const insertEmojiAtCaret = (emoji: string) => {
+    const textarea = messageInputRef.current
+    if (!textarea) {
+      setNewMessage(prev => `${prev}${emoji}`)
+      return
+    }
+    const start = textarea.selectionStart ?? newMessage.length
+    const end = textarea.selectionEnd ?? newMessage.length
+    const before = newMessage.slice(0, start)
+    const after = newMessage.slice(end)
+    const next = `${before}${emoji}${after}`
+    setNewMessage(next)
+    // restore caret just after the inserted emoji
+    requestAnimationFrame(() => {
+      try {
+        textarea.focus()
+        const caretPos = start + emoji.length
+        textarea.selectionStart = caretPos
+        textarea.selectionEnd = caretPos
+        autoResizeTextArea(textarea)
+        startTyping()
+      } catch {}
+    })
   }
 
   const uploadToImgbbClient = async (file: File, apiKey: string): Promise<string> => {
@@ -889,6 +946,32 @@ export default function ChatWindow({
               </svg>
             )}
           </button>
+          <div className={styles.emojiContainer} ref={emojiContainerRef}>
+            <button
+              type="button"
+              className={styles.emojiButton}
+              title="Insert emoji"
+              aria-label="Insert emoji"
+              onClick={() => setShowEmojiPicker(prev => !prev)}
+            >
+              <span role="img" aria-label="emoji">😊</span>
+            </button>
+            {showEmojiPicker && (
+              <div className={styles.emojiPopover} onClick={(e) => e.stopPropagation()}>
+                {/* width/height to keep picker compact; theme follows app theme */}
+                {typeof window !== 'undefined' && (
+                  <EmojiPicker
+                    onEmojiClick={(emojiData) => {
+                      insertEmojiAtCaret(emojiData.emoji)
+                    }}
+                    width={320}
+                    height={420}
+                    theme={document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'}
+                  />
+                )}
+              </div>
+            )}
+          </div>
           <textarea
             ref={messageInputRef}
             rows={1}
