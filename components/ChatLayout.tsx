@@ -223,11 +223,11 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
 
           // Only notify if
           // - notification permission granted
-          // - window not focused OR user is not already viewing this chat
+          // - window/tab is not focused (avoid noise while actively using the app)
           const permissionOk = hasNotificationPermission || (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted')
           if (!permissionOk) return
 
-          const shouldNotify = !isWindowFocusedRef.current || !isViewingThisChat
+          const shouldNotify = !isWindowFocusedRef.current
           if (!shouldNotify) return
 
           // Find session name for title
