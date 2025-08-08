@@ -40,6 +40,31 @@ export default function ChatWindow({
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
   const [readByMap, setReadByMap] = useState<Record<string, string[]>>({})
+  const [isWindowFocused, setIsWindowFocused] = useState(true)
+  const [isTabVisible, setIsTabVisible] = useState(true)
+
+  // Track focus/visibility to control when reads are recorded
+  useEffect(() => {
+    const handleFocus = () => setIsWindowFocused(true)
+    const handleBlur = () => setIsWindowFocused(false)
+    const handleVisibilityChange = () => {
+      try {
+        setIsTabVisible(document.visibilityState === 'visible')
+      } catch {}
+    }
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('blur', handleBlur)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    // Initialize visibility on mount
+    try {
+      setIsTabVisible(document.visibilityState === 'visible')
+    } catch {}
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('blur', handleBlur)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
 
   useEffect(() => {
     if (!selectedChat) return
@@ -254,13 +279,15 @@ export default function ChatWindow({
   useEffect(() => {
     const markReadReceipts = async () => {
       if (!selectedChat || messages.length === 0) return
+      // Do not mark as read unless the tab is focused and visible
+      if (!isWindowFocused || !isTabVisible) return
       const unseen = messages.filter(m => m.sender_id !== user.id && !(readByMap[m.id] || []).includes(user.id))
       if (unseen.length === 0) return
       const rows = unseen.map(m => ({ message_id: m.id, user_id: user.id }))
       await supabase.from('message_reads').upsert(rows, { onConflict: 'message_id,user_id' })
     }
     markReadReceipts()
-  }, [messages, selectedChat])
+  }, [messages, selectedChat, isWindowFocused, isTabVisible])
 
   if (!selectedChat) {
     return (

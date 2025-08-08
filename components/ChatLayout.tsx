@@ -26,12 +26,14 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
 
   // Track window focus/visibility to avoid noisy notifications
   const [isWindowFocused, setIsWindowFocused] = useState(true)
+  const [isTabVisible, setIsTabVisible] = useState(true)
   const [hasNotificationPermission, setHasNotificationPermission] = useState<boolean>(false)
 
   // Refs to avoid stale closures in realtime callbacks
   const selectedChatRef = useRef<ChatSession | null>(null)
   const chatSessionsRef = useRef<ChatSession[]>([])
   const isWindowFocusedRef = useRef<boolean>(true)
+  const isTabVisibleRef = useRef<boolean>(true)
   const userIdRef = useRef<string>(user.id)
 
   useEffect(() => {
@@ -55,6 +57,10 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
     isWindowFocusedRef.current = isWindowFocused
   }, [isWindowFocused])
 
+  useEffect(() => {
+    isTabVisibleRef.current = isTabVisible
+  }, [isTabVisible])
+
   // When user selects/opens a chat, clear its unread counter
   useEffect(() => {
     if (!selectedChat) return
@@ -69,8 +75,19 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
   useEffect(() => {
     const handleFocus = () => setIsWindowFocused(true)
     const handleBlur = () => setIsWindowFocused(false)
+    const handleVisibilityChange = () => {
+      try {
+        setIsTabVisible(document.visibilityState === 'visible')
+      } catch {}
+    }
     window.addEventListener('focus', handleFocus)
     window.addEventListener('blur', handleBlur)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    // Initialize visibility on mount
+    try {
+      setIsTabVisible(document.visibilityState === 'visible')
+    } catch {}
 
     // Initialize notification permission on mount
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -87,6 +104,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
     return () => {
       window.removeEventListener('focus', handleFocus)
       window.removeEventListener('blur', handleBlur)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [])
 
@@ -227,7 +245,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
           const permissionOk = hasNotificationPermission || (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted')
           if (!permissionOk) return
 
-          const shouldNotify = !isWindowFocusedRef.current
+          const shouldNotify = !isWindowFocusedRef.current || !isTabVisibleRef.current
           if (!shouldNotify) return
 
           // Find session name for title
