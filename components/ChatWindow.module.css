@@ -251,11 +251,13 @@
   max-height: 120px;
   line-height: 1.4;
   overflow-y: auto;
+  color: var(--color-text);
 }
 
 .messageInput:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-primary);
+  color: var(--color-text);
 }
 
 .messageInput:disabled {
