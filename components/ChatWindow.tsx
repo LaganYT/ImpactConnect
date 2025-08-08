@@ -269,7 +269,7 @@ export default function ChatWindow({
           : `room_id=eq.${selectedChat.id}`
       }, (payload) => {
         const updated = payload.new as UIMessage
-        setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, content: (updated as any).content, updated_at: (updated as any).updated_at } : m))
+        setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, content: updated.content, updated_at: updated.updated_at } : m))
       })
       .on('postgres_changes', {
         event: 'DELETE',
@@ -588,7 +588,6 @@ export default function ChatWindow({
   const handleDeleteMessage = async (id: string) => {
     setContextMenu(null)
     try {
-      // eslint-disable-next-line no-alert
       const ok = window.confirm('Delete this message?')
       if (!ok) return
       await supabase.from('messages').delete().eq('id', id)

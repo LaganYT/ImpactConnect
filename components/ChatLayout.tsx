@@ -268,7 +268,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
               }
               try { notif.close() } catch {}
             }
-          } catch (e) {
+          } catch {
             // Silently ignore if notifications fail
           }
         }
