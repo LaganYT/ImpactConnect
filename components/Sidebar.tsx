@@ -264,7 +264,7 @@ export default function Sidebar({
             type="text"
             value={newChatUsername}
             onChange={(e) => setNewChatUsername(e.target.value)}
-            placeholder="Enter username (e.g. @logan)"
+            placeholder="Enter username (e.g. @example)"
             className={styles.input}
             required
           />
