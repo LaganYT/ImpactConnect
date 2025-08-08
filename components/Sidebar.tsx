@@ -383,7 +383,7 @@ export default function Sidebar({
 
       {/* Rename Room Modal (simple inline form) */}
       {editingRoom && (
-        <div className={styles.newRoomForm} style={{ borderTop: '1px solid #e2e8f0' }}>
+        <div className={styles.newRoomForm} style={{ borderTop: '1px solid var(--color-border)' }}>
           <form onSubmit={submitEditRoomName}>
             <input
               type="text"

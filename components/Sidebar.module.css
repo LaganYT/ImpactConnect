@@ -1,7 +1,7 @@
 .sidebar {
   width: 320px;
-  background: white;
-  border-right: 1px solid #e2e8f0;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -9,7 +9,7 @@
 
 .header {
   padding: 20px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -44,7 +44,7 @@
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -53,7 +53,7 @@
 .userEmail {
   margin: 0;
   font-size: 12px;
-  color: #666;
+  color: var(--color-muted-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -62,7 +62,7 @@
 .logoutButton {
   background: none;
   border: none;
-  color: #666;
+  color: var(--color-muted-text);
   font-size: 12px;
   cursor: pointer;
   padding: 4px 8px;
@@ -71,23 +71,23 @@
 }
 
 .logoutButton:hover {
-  background: #f1f5f9;
+  background: var(--color-hover);
 }
 
 .actions {
   padding: 16px 20px;
   display: flex;
   gap: 8px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .newChatButton,
 .newRoomButton {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid #e2e8f0;
-  background: white;
-  color: #333;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
@@ -97,26 +97,26 @@
 
 .newChatButton:hover,
 .newRoomButton:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+  background: var(--color-hover);
+  border-color: var(--color-border);
 }
 
 .newChatForm,
 .newRoomForm {
   padding: 16px 20px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-2);
 }
 
 .input,
 .textarea {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   font-size: 14px;
   margin-bottom: 8px;
-  background: white;
+  background: var(--color-input-bg);
 }
 
 .input:focus,
@@ -162,13 +162,13 @@
 }
 
 .cancelButton {
-  background: white;
-  color: #666;
-  border: 1px solid #e2e8f0;
+  background: var(--color-surface);
+  color: var(--color-muted-text);
+  border: 1px solid var(--color-border);
 }
 
 .cancelButton:hover {
-  background: #f1f5f9;
+  background: var(--color-hover);
 }
 
 .chatList {
@@ -181,7 +181,7 @@
   margin: 0 20px 12px 20px;
   font-size: 12px;
   font-weight: 600;
-  color: #666;
+  color: var(--color-muted-text);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -197,11 +197,11 @@
 }
 
 .chatItem:hover {
-  background: #f8fafc;
+  background: var(--color-hover);
 }
 
 .chatItem.selected {
-  background: #eff6ff;
+  background: var(--color-selected);
   border-right: 3px solid #667eea;
 }
 
@@ -240,7 +240,7 @@
   margin: 0;
   font-size: 14px;
   font-weight: 500;
-  color: #1a1a1a;
+  color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -261,8 +261,8 @@
 .contextMenu {
   position: fixed;
   z-index: 1000;
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
   padding: 6px;
@@ -278,13 +278,13 @@
   border: none;
   background: none;
   cursor: pointer;
-  color: #111827;
+  color: var(--color-text);
   font-size: 13px;
   border-radius: 6px;
 }
 
 .contextMenuItem:hover {
-  background: #f3f4f6;
+  background: var(--color-hover);
 }
 
 .danger {
@@ -296,7 +296,7 @@
     width: 100%;
     height: auto;
     border-right: none;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--color-border);
   }
   
   .chatList {

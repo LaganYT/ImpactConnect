@@ -15,6 +15,7 @@ create table public.users (
   created_at timestamp with time zone null default now(),
   updated_at timestamp with time zone null default now(),
   username text not null,
+  theme_preference text not null default 'system',
   constraint users_pkey primary key (id),
   constraint users_email_key unique (email),
   constraint users_id_fkey foreign KEY (id) references auth.users (id) on delete CASCADE

@@ -21,6 +21,17 @@ export default function SettingsPanel() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [removeAvatar, setRemoveAvatar] = useState(false)
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null
+        if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
+      }
+    } catch (_) {
+      // ignore
+    }
+    return 'system'
+  })
 
   const normalizeUsername = (raw: string): string => {
     const trimmed = (raw || '').trim()
@@ -52,7 +63,7 @@ export default function SettingsPanel() {
       // Try loading profile row
       const { data: profile } = await supabase
         .from('users')
-        .select('username, full_name, email, avatar_url')
+        .select('username, full_name, email, avatar_url, theme_preference')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -61,6 +72,8 @@ export default function SettingsPanel() {
         setFullName(profile.full_name || displayFromMeta)
         setEmail(profile.email || user.email || '')
         setAvatarUrl((profile as { avatar_url?: string | null }).avatar_url || null)
+        const serverTheme = (profile as { theme_preference?: 'light' | 'dark' | 'system' }).theme_preference
+        if (serverTheme) setTheme(serverTheme)
       } else {
         // No profile row present yet
         setUsername(computedUsername)
@@ -70,6 +83,32 @@ export default function SettingsPanel() {
     }
     load()
   }, [supabase])
+
+  useEffect(() => {
+    // Apply theme immediately when changed
+    try {
+      localStorage.setItem('theme', theme)
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+      const next = theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme
+      document.documentElement.setAttribute('data-theme', next)
+    } catch (_) {
+      // ignore
+    }
+  }, [theme])
+
+  const updateThemePreference = async (nextTheme: 'light' | 'dark' | 'system') => {
+    setTheme(nextTheme)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      await supabase
+        .from('users')
+        .update({ theme_preference: nextTheme })
+        .eq('id', user.id)
+    } catch (_) {
+      // Best-effort; localStorage still persists
+    }
+  }
 
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -190,16 +229,30 @@ export default function SettingsPanel() {
       {message && <div className={styles.success}>{message}</div>}
       {error && <div className={styles.error}>{error}</div>}
 
+      <form className={styles.form} onSubmit={(e) => e.preventDefault()}>
+        <h2 className={styles.section}>Appearance</h2>
+        <label className={styles.label}>Theme</label>
+        <select
+          className={styles.input}
+          value={theme}
+          onChange={(e) => updateThemePreference(e.target.value as 'light' | 'dark' | 'system')}
+        >
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+          <option value="system">System</option>
+        </select>
+      </form>
+
       <form onSubmit={saveProfile} className={styles.form}>
         <h2 className={styles.section}>Profile</h2>
         <label className={styles.label}>Profile picture</label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', background: '#e5e7eb', flex: '0 0 auto' }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', background: 'var(--color-avatar-neutral)', flex: '0 0 auto' }}>
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
-              <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: '#6b7280', fontWeight: 700 }}>
+              <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'var(--color-avatar-neutral-text)', fontWeight: 700 }}>
                 {(fullName || email)?.[0]?.toUpperCase() || 'U'}
               </div>
             )}

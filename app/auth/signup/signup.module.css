@@ -8,9 +8,9 @@
 }
 
 .signupCard {
-  background: white;
+  background: var(--color-surface);
   border-radius: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--color-modal-shadow);
   padding: 40px;
   width: 100%;
   max-width: 400px;
@@ -20,12 +20,12 @@
 .title {
   font-size: 28px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--color-title);
   margin: 0 0 8px 0;
 }
 
 .subtitle {
-  color: #666;
+  color: var(--color-muted-text);
   margin: 0 0 32px 0;
   font-size: 16px;
 }
@@ -46,23 +46,23 @@
 
 .label {
   font-weight: 600;
-  color: #333;
+  color: var(--color-text);
   font-size: 14px;
 }
 
 .input {
   padding: 12px 16px;
-  border: 2px solid #e1e5e9;
+  border: 2px solid var(--color-border);
   border-radius: 8px;
   font-size: 16px;
   transition: border-color 0.2s ease;
-  background: #fafafa;
+  background: var(--color-input-bg);
 }
 
 .input:focus {
   outline: none;
   border-color: #667eea;
-  background: white;
+  background: var(--color-surface);
 }
 
 .emailButton {
@@ -100,13 +100,13 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: #e1e5e9;
+  background: var(--color-border);
 }
 
 .divider span {
-  background: white;
+  background: var(--color-surface);
   padding: 0 16px;
-  color: #666;
+  color: var(--color-muted-text);
   font-size: 14px;
 }
 
@@ -116,9 +116,9 @@
   justify-content: center;
   gap: 12px;
   width: 100%;
-  background: white;
-  color: #333;
-  border: 2px solid #e1e5e9;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 2px solid var(--color-border);
   padding: 14px 24px;
   border-radius: 8px;
   font-size: 16px;
@@ -128,8 +128,8 @@
 }
 
 .googleButton:hover:not(:disabled) {
-  border-color: #d1d5db;
-  background: #f9fafb;
+  border-color: var(--color-border);
+  background: var(--color-hover);
 }
 
 .googleButton:disabled {
@@ -144,7 +144,7 @@
 
 .loginLink {
   margin-top: 24px;
-  color: #666;
+  color: var(--color-muted-text);
   font-size: 14px;
 }
 
@@ -159,12 +159,12 @@
 }
 
 .error {
-  background: #fee;
-  color: #c53030;
+  background: #2b0d0d;
+  color: #fca5a5;
   padding: 12px;
   border-radius: 8px;
   font-size: 14px;
-  border: 1px solid #fed7d7;
+  border: 1px solid #7f1d1d;
 }
 
 @media (max-width: 480px) {
