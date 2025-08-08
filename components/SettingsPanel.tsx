@@ -17,6 +17,10 @@ export default function SettingsPanel() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [removeAvatar, setRemoveAvatar] = useState(false)
 
   const normalizeUsername = (raw: string): string => {
     const trimmed = (raw || '').trim()
@@ -48,7 +52,7 @@ export default function SettingsPanel() {
       // Try loading profile row
       const { data: profile } = await supabase
         .from('users')
-        .select('username, full_name, email')
+        .select('username, full_name, email, avatar_url')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -56,6 +60,7 @@ export default function SettingsPanel() {
         setUsername(profile.username || computedUsername)
         setFullName(profile.full_name || displayFromMeta)
         setEmail(profile.email || user.email || '')
+        setAvatarUrl((profile as { avatar_url?: string | null }).avatar_url || null)
       } else {
         // No profile row present yet
         setUsername(computedUsername)
@@ -84,9 +89,44 @@ export default function SettingsPanel() {
       return
     }
 
+    let nextAvatarUrl: string | null | undefined = undefined
+
+    try {
+      if (removeAvatar) {
+        nextAvatarUrl = null
+      } else if (avatarFile) {
+        setUploadingAvatar(true)
+        const fileForm = new FormData()
+        fileForm.append('file', avatarFile)
+        const res = await fetch('/api/imgbb-upload', { method: 'POST', body: fileForm })
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}))
+          throw new Error(json.error || 'Failed to upload avatar')
+        }
+        const { url } = (await res.json()) as { url: string }
+        nextAvatarUrl = url
+      }
+    } catch (avatarErr: unknown) {
+      const msg = avatarErr instanceof Error ? avatarErr.message : 'Failed to upload avatar'
+      setError(msg)
+      setUploadingAvatar(false)
+      setSavingProfile(false)
+      return
+    } finally {
+      setUploadingAvatar(false)
+    }
+
+    const updateData: { full_name: string; username: string; avatar_url?: string | null } = {
+      full_name: fullName,
+      username: nextUsername,
+    }
+    if (nextAvatarUrl !== undefined) {
+      updateData.avatar_url = nextAvatarUrl
+    }
+
     const { error: upErr } = await supabase
       .from('users')
-      .update({ full_name: fullName, username: nextUsername })
+      .update(updateData)
       .eq('id', user.id)
 
     if (upErr) {
@@ -98,9 +138,16 @@ export default function SettingsPanel() {
         setError(upErr.message)
       }
     } else {
-      await supabase.auth.updateUser({ data: { full_name: fullName } })
+      const meta: Record<string, unknown> = { full_name: fullName }
+      if (nextAvatarUrl !== undefined) meta.avatar_url = nextAvatarUrl
+      await supabase.auth.updateUser({ data: meta })
       setMessage('Profile updated')
       setUsername(nextUsername)
+      if (nextAvatarUrl !== undefined) {
+        setAvatarUrl(nextAvatarUrl)
+        setAvatarFile(null)
+        setRemoveAvatar(false)
+      }
     }
     setSavingProfile(false)
   }
@@ -145,6 +192,48 @@ export default function SettingsPanel() {
 
       <form onSubmit={saveProfile} className={styles.form}>
         <h2 className={styles.section}>Profile</h2>
+        <label className={styles.label}>Profile picture</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', background: '#e5e7eb', flex: '0 0 auto' }}>
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: '#6b7280', fontWeight: 700 }}>
+                {(fullName || email)?.[0]?.toUpperCase() || 'U'}
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null
+                setAvatarFile(file)
+                setRemoveAvatar(false)
+                if (file) {
+                  const previewUrl = URL.createObjectURL(file)
+                  setAvatarUrl(previewUrl)
+                }
+              }}
+            />
+            {avatarUrl && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAvatarFile(null)
+                  setRemoveAvatar(true)
+                  setAvatarUrl(null)
+                }}
+                className={styles.primary}
+                style={{ background: '#ef4444' }}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
         <label className={styles.label}>Display name</label>
         <input className={styles.input} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" />
 
@@ -152,7 +241,7 @@ export default function SettingsPanel() {
         <input className={styles.input} value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@yourname" />
 
         <button type="submit" className={styles.primary} disabled={savingProfile}>
-          {savingProfile ? 'Saving…' : 'Save profile'}
+          {savingProfile || uploadingAvatar ? 'Saving…' : 'Save profile'}
         </button>
       </form>
 

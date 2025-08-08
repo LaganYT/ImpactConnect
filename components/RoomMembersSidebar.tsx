@@ -20,6 +20,7 @@ type MemberRow = {
     username?: string | null
     email?: string | null
     full_name?: string | null
+    avatar_url?: string | null
   } | null
 }
 
@@ -76,7 +77,7 @@ export default function RoomMembersSidebar({ user, selectedChat }: RoomMembersSi
       // Fallback: direct select with join alias
       const { data, error } = await supabase
         .from('room_members')
-        .select('user_id, role, users:users(id, username, email, full_name)')
+        .select('user_id, role, users:users(id, username, email, full_name, avatar_url)')
         .eq('room_id', roomId)
         .order('joined_at', { ascending: true })
 
@@ -84,7 +85,7 @@ export default function RoomMembersSidebar({ user, selectedChat }: RoomMembersSi
       const typed = (data || []) as unknown as {
         user_id: string
         role: 'admin' | 'member'
-        users: { id: string; username: string | null; email: string | null; full_name: string | null }
+        users: { id: string; username: string | null; email: string | null; full_name: string | null; avatar_url?: string | null }
       }[]
       setMembers(typed)
     } catch (err) {
@@ -143,7 +144,18 @@ export default function RoomMembersSidebar({ user, selectedChat }: RoomMembersSi
           {sortedMembers.map((m) => (
             <div key={m.user_id} className={styles.memberItem}>
               <div className={styles.avatar}>
-                {getDisplayInitial(m, user)}
+                {(() => {
+                  const avatarUrl = m.user_id === user.id
+                    ? ((user.user_metadata as { avatar_url?: string })?.avatar_url || null)
+                    : (m.users?.avatar_url || null)
+                  if (avatarUrl) {
+                    return (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                    )
+                  }
+                  return getDisplayInitial(m, user)
+                })()}
               </div>
               <div className={styles.memberInfo}>
                 <div className={styles.nameRow}>

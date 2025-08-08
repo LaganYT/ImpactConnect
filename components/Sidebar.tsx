@@ -203,7 +203,17 @@ export default function Sidebar({
       <div className={styles.header}>
         <div className={styles.userInfo}>
           <div className={styles.avatar}>
-            {user.user_metadata?.full_name?.[0] || user.email?.[0] || 'U'}
+            {(() => {
+              const meta = (user.user_metadata || {}) as { full_name?: string; avatar_url?: string }
+              const aurl = meta.avatar_url as string | undefined
+              if (aurl) {
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={aurl} alt="Avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                )
+              }
+              return (user.user_metadata?.full_name?.[0] || user.email?.[0] || 'U')
+            })()}
           </div>
           <div className={styles.userDetails}>
             <h3 className={styles.userName}>
