@@ -60,7 +60,8 @@ export default function RoomMembersSidebar({ user, selectedChat }: RoomMembersSi
         .rpc('list_room_members_with_profiles', { p_room_id: roomId })
 
       if (!rpcError && Array.isArray(rpcData)) {
-        const rows: MemberRow[] = (rpcData as ListRoomMemberRow[]).map((r) => ({
+        // Map basic fields first
+        let rows: MemberRow[] = (rpcData as ListRoomMemberRow[]).map((r) => ({
           user_id: r.user_id,
           role: r.role,
           users: {
@@ -70,6 +71,29 @@ export default function RoomMembersSidebar({ user, selectedChat }: RoomMembersSi
             full_name: r.full_name,
           },
         }))
+
+        // Try to enrich with avatar_url via direct select (RLS should allow for room members)
+        try {
+          const ids = rows.map((r) => r.user_id)
+          const { data: avatars } = await supabase
+            .from('users')
+            .select('id, avatar_url')
+            .in('id', ids)
+          if (Array.isArray(avatars)) {
+            const idToAvatar: Record<string, string | null> = {}
+            for (const a of avatars as { id: string; avatar_url: string | null }[]) {
+              idToAvatar[a.id] = a.avatar_url
+            }
+            rows = rows.map((r) => ({
+              ...r,
+              users: {
+                ...(r.users || { id: r.user_id }),
+                avatar_url: idToAvatar[r.user_id] ?? null,
+              },
+            }))
+          }
+        } catch {}
+
         setMembers(rows)
         return
       }
