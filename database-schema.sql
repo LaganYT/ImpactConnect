@@ -136,6 +136,18 @@ CREATE POLICY "Users can view DM partners' profiles" ON public.users
         )
     );
 
+-- Allow viewing basic profiles of users who share a room with the caller
+CREATE POLICY "Users can view profiles of room members in shared rooms" ON public.users
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1
+            FROM public.room_members rm_self
+            JOIN public.room_members rm_other ON rm_self.room_id = rm_other.room_id
+            WHERE rm_self.user_id = auth.uid()
+              AND rm_other.user_id = users.id
+        )
+    );
+
 -- RLS Policies for direct_messages
 CREATE POLICY "Users can view DMs they are part of" ON public.direct_messages
     FOR SELECT USING (auth.uid() = user1_id OR auth.uid() = user2_id);
@@ -324,3 +336,90 @@ create policy "Users can update their own reads" on public.message_reads
 
 -- Realtime for read receipts
 alter publication supabase_realtime add table public.message_reads;
+
+-- Utility RPCs
+-- Create room and add creator as admin in one transaction
+create or replace function public.create_room_with_owner(
+  p_name text,
+  p_description text default null,
+  p_is_private boolean default true
+)
+returns uuid
+language plpgsql
+security definer
+as $$
+declare
+  new_room_id uuid;
+begin
+  insert into public.rooms (name, description, created_by, is_private, invite_code)
+  values (
+    p_name,
+    p_description,
+    auth.uid(),
+    coalesce(p_is_private, true),
+    encode(gen_random_bytes(6), 'hex')
+  ) returning id into new_room_id;
+
+  insert into public.room_members (room_id, user_id, role)
+  values (new_room_id, auth.uid(), 'admin');
+
+  return new_room_id;
+end;
+$$;
+
+-- Accept invite by code and add caller as member
+-- To change the return type, you must drop the function first if it already exists.
+drop function if exists public.accept_invite_by_code(text);
+
+create function public.accept_invite_by_code(
+  p_invite_code text
+)
+returns uuid
+language plpgsql
+security definer
+as $$
+declare
+  rid uuid;
+begin
+  select id into rid from public.rooms where invite_code = p_invite_code;
+  if rid is null then
+    raise exception 'Invalid invite code';
+  end if;
+
+  insert into public.room_members (room_id, user_id, role)
+  values (rid, auth.uid(), 'member')
+  on conflict (room_id, user_id) do nothing;
+
+  return rid;
+end;
+$$;
+
+-- List room members with basic profiles regardless of users RLS, but only if caller is a member
+create or replace function public.list_room_members_with_profiles(
+  p_room_id uuid
+)
+returns table (
+  user_id uuid,
+  role public.user_role,
+  username text,
+  email text,
+  full_name text
+)
+language plpgsql
+security definer
+as $$
+begin
+  if not exists (
+    select 1 from public.room_members rm
+    where rm.room_id = p_room_id and rm.user_id = auth.uid()
+  ) then
+    raise exception 'Not authorized';
+  end if;
+
+  return query
+  select rm.user_id, rm.role, u.username, u.email, u.full_name
+  from public.room_members rm
+  join public.users u on u.id = rm.user_id
+  where rm.room_id = p_room_id;
+end;
+$$;

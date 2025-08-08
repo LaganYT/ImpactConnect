@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import ChatWindow from '@/components/ChatWindow'
 import SettingsPanel from './SettingsPanel'
+import RoomMembersSidebar from './RoomMembersSidebar'
 import Modal from './Modal'
 import { ChatSession, Room } from '@/lib/types'
 import { emailToUsername } from '@/lib/usernames'
@@ -172,6 +173,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
           </Modal>
         )}
       </div>
+      <RoomMembersSidebar user={user} selectedChat={selectedChat} />
     </div>
   )
 } 
