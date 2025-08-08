@@ -2,79 +2,115 @@
 -- Run this in your Supabase SQL editor
 
 -- Enable Row Level Security
-ALTER DATABASE postgres SET "app.jwt_secret" TO '/0RqsuzuSR9WdmsBadN4GfY9LoUf8wEgi5zwXfWuWtTzsdKXaNrS119MJbz2omfrwXiLr+HcNBAZ3hRBfnp21A==';
 
 -- Create custom types
 CREATE TYPE user_role AS ENUM ('admin', 'member');
 
 -- Create users table (extends Supabase auth.users)
-CREATE TABLE public.users (
-    id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    full_name TEXT,
-    username TEXT GENERATED ALWAYS AS (('@' || split_part(email, '@', 1))) STORED,
-    avatar_url TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+create table public.users (
+  id uuid not null,
+  email text not null,
+  full_name text null,
+  avatar_url text null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  username text not null,
+  constraint users_pkey primary key (id),
+  constraint users_email_key unique (email),
+  constraint users_id_fkey foreign KEY (id) references auth.users (id) on delete CASCADE
+) TABLESPACE pg_default;
 
 -- Create direct_messages table
-CREATE TABLE public.direct_messages (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user1_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
-    user2_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user1_id, user2_id)
-);
+create table public.direct_messages (
+  id uuid not null default gen_random_uuid (),
+  user1_id uuid not null,
+  user2_id uuid not null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint direct_messages_pkey primary key (id),
+  constraint direct_messages_user1_id_user2_id_key unique (user1_id, user2_id),
+  constraint direct_messages_user1_id_fkey foreign KEY (user1_id) references users (id) on delete CASCADE,
+  constraint direct_messages_user2_id_fkey foreign KEY (user2_id) references users (id) on delete CASCADE
+) TABLESPACE pg_default;
 
 -- Create rooms table
-CREATE TABLE public.rooms (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    created_by UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    is_private BOOLEAN DEFAULT true,
-    invite_code TEXT UNIQUE
-);
+create table public.rooms (
+  id uuid not null default gen_random_uuid (),
+  name text not null,
+  description text null,
+  created_by uuid not null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  is_private boolean null default true,
+  invite_code text null,
+  constraint rooms_pkey primary key (id),
+  constraint rooms_invite_code_key unique (invite_code),
+  constraint rooms_created_by_fkey foreign KEY (created_by) references users (id) on delete CASCADE
+) TABLESPACE pg_default;
 
 -- Create room_members table
-CREATE TABLE public.room_members (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    room_id UUID REFERENCES public.rooms(id) ON DELETE CASCADE NOT NULL,
-    user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
-    joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    role user_role DEFAULT 'member',
-    UNIQUE(room_id, user_id)
-);
+create table public.room_members (
+  id uuid not null default gen_random_uuid (),
+  room_id uuid not null,
+  user_id uuid not null,
+  joined_at timestamp with time zone null default now(),
+  role public.user_role null default 'member'::user_role,
+  constraint room_members_pkey primary key (id),
+  constraint room_members_room_id_user_id_key unique (room_id, user_id),
+  constraint room_members_room_id_fkey foreign KEY (room_id) references rooms (id) on delete CASCADE,
+  constraint room_members_user_id_fkey foreign KEY (user_id) references users (id) on delete CASCADE
+) TABLESPACE pg_default;
 
 -- Create messages table
-CREATE TABLE public.messages (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    content TEXT NOT NULL,
-    sender_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
-    sender_name TEXT,
-    sender_email TEXT,
-    sender_username TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    direct_message_id UUID REFERENCES public.direct_messages(id) ON DELETE CASCADE,
-    room_id UUID REFERENCES public.rooms(id) ON DELETE CASCADE,
-    CHECK (
-        (direct_message_id IS NOT NULL AND room_id IS NULL) OR
-        (direct_message_id IS NULL AND room_id IS NOT NULL)
+create table public.messages (
+  id uuid not null default gen_random_uuid (),
+  content text not null,
+  sender_id uuid not null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  direct_message_id uuid null,
+  room_id uuid null,
+  sender_name text null,
+  sender_email text null,
+  sender_username text null,
+  constraint messages_pkey primary key (id),
+  constraint messages_direct_message_id_fkey foreign KEY (direct_message_id) references direct_messages (id) on delete CASCADE,
+  constraint messages_room_id_fkey foreign KEY (room_id) references rooms (id) on delete CASCADE,
+  constraint messages_sender_id_fkey foreign KEY (sender_id) references users (id) on delete CASCADE,
+  constraint messages_check check (
+    (
+      (
+        (direct_message_id is not null)
+        and (room_id is null)
+      )
+      or (
+        (direct_message_id is null)
+        and (room_id is not null)
+      )
     )
-);
+  )
+) TABLESPACE pg_default;
 
 -- Create indexes for better performance
-CREATE INDEX idx_direct_messages_users ON public.direct_messages(user1_id, user2_id);
-CREATE INDEX idx_room_members_room ON public.room_members(room_id);
-CREATE INDEX idx_room_members_user ON public.room_members(user_id);
-CREATE INDEX idx_messages_dm ON public.messages(direct_message_id);
-CREATE INDEX idx_messages_room ON public.messages(room_id);
-CREATE INDEX idx_messages_created_at ON public.messages(created_at);
+create index IF not exists idx_direct_messages_users on public.direct_messages using btree (user1_id, user2_id) TABLESPACE pg_default;
+create index IF not exists idx_messages_dm on public.messages using btree (direct_message_id) TABLESPACE pg_default;
+create index IF not exists idx_messages_room on public.messages using btree (room_id) TABLESPACE pg_default;
+create index IF not exists idx_messages_created_at on public.messages using btree (created_at) TABLESPACE pg_default;
+create index IF not exists idx_room_members_room on public.room_members using btree (room_id) TABLESPACE pg_default;
+create index IF not exists idx_room_members_user on public.room_members using btree (user_id) TABLESPACE pg_default;
+create unique INDEX IF not exists users_username_unique_ci on public.users using btree (lower(username)) TABLESPACE pg_default;
+
+-- Triggers for username management
+create trigger trg_set_username_from_email BEFORE INSERT
+or
+update OF email,
+username on users for EACH row
+execute FUNCTION set_username_from_email ();
+
+create trigger on_user_username_updated
+after
+update OF username on users for EACH row
+execute FUNCTION sync_message_usernames ();
 
 -- Enable Row Level Security
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
