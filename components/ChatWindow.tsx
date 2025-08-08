@@ -33,7 +33,7 @@ export default function ChatWindow({
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
-  const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -244,25 +244,34 @@ export default function ChatWindow({
     el.style.height = `${next}px`
   }
 
-  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !selectedChat) return
     try {
-      setUploadingImage(true)
+      setUploadingFile(true)
       const form = new FormData()
       form.append('file', file)
-      const res = await fetch('/api/imgbb-upload', { method: 'POST', body: form })
+      const endpoint = file.type?.startsWith('image/') ? '/api/imgbb-upload' : '/api/filebin-upload'
+      const res = await fetch(endpoint, { method: 'POST', body: form })
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}))
-        throw new Error(json.error || 'Failed to upload image')
+        const raw = await res.text().catch(() => '')
+        try {
+          const parsed = raw ? JSON.parse(raw) : null
+          const detail = parsed?.details?.api?.status || parsed?.details?.web?.status
+          const msg = parsed?.error || raw || 'Failed to upload file'
+          throw new Error(detail ? `${msg} (status ${detail})` : msg)
+        } catch {
+          throw new Error(raw || 'Failed to upload file')
+        }
       }
-      const { url } = (await res.json()) as { url: string }
-      await onSendMessage(url)
+      const json = (await res.json()) as { url: string }
+      if (!json?.url) throw new Error('Upload did not return a URL')
+      await onSendMessage(json.url)
     } catch (err) {
-      console.error('Image upload failed', err)
-      alert(err instanceof Error ? err.message : 'Image upload failed')
+      console.error('File upload failed', err)
+      alert(err instanceof Error ? err.message : 'File upload failed')
     } finally {
-      setUploadingImage(false)
+      setUploadingFile(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
@@ -274,6 +283,20 @@ export default function ChatWindow({
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp)
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const extractUrlParts = (url: string): { filename: string | null; extension: string | null; host: string | null } => {
+    try {
+      const u = new URL(url)
+      const pathname = decodeURIComponent(u.pathname || '')
+      const segments = pathname.split('/')
+      const filename = segments[segments.length - 1] || null
+      const match = filename ? filename.match(/\.([a-z0-9]+)(?:\?.*)?$/i) : null
+      const extension = match ? match[1].toLowerCase() : null
+      return { filename, extension, host: u.host || null }
+    } catch {
+      return { filename: null, extension: null, host: null }
+    }
   }
 
   useEffect(() => {
@@ -378,12 +401,67 @@ export default function ChatWindow({
                           return isOwn ? 'You' : 'Unknown'
                         })()}
                       </div>
-                      {/https?:/.test(message.content) && /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\/i\.ibb\.co\/)/i.test(message.content) ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={message.content} alt="Shared image" style={{ maxWidth: '320px', borderRadius: 12 }} />
-                      ) : (
-                        <div className={styles.messageText}>{message.content}</div>
-                      )}
+                      {(() => {
+                        const content = message.content
+                        const isUrl = /^https?:/i.test(content)
+                        if (!isUrl) return <div className={styles.messageText}>{content}</div>
+
+                        const isImage = /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.avif|\.svg)(?:\?.*)?$/i.test(content) || /\/i\.ibb\.co\//i.test(content)
+                        if (isImage) {
+                          return (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={content} alt="Shared image" style={{ maxWidth: '320px', borderRadius: 12 }} />
+                          )
+                        }
+
+                        const { filename, extension, host } = extractUrlParts(content)
+                        const isFilebin = (host || '').includes('filebin.net')
+
+                        const isVideo = /(\.mp4|\.webm|\.ogg|\.mov|\.m4v)(?:\?.*)?$/i.test(content)
+                        if (isVideo && !isFilebin) {
+                          return (
+                            <video src={content} controls style={{ maxWidth: 360, borderRadius: 12 }} />
+                          )
+                        }
+
+                        const isAudio = /(\.mp3|\.wav|\.ogg|\.m4a|\.aac)(?:\?.*)?$/i.test(content)
+                        if (isAudio && !isFilebin) {
+                          return (
+                            <audio src={content} controls style={{ maxWidth: 360 }} />
+                          )
+                        }
+
+                        const ext = (extension || 'file').toLowerCase()
+                        const icon = (() => {
+                          if (['pdf'].includes(ext)) return '📄'
+                          if (['doc', 'docx', 'rtf', 'odt', 'md', 'txt'].includes(ext)) return '📝'
+                          if (['xls', 'xlsx', 'csv', 'ods'].includes(ext)) return '📊'
+                          if (['ppt', 'pptx', 'odp'].includes(ext)) return '📈'
+                          if (['zip', 'rar', '7z', 'gz', 'tar'].includes(ext)) return '🗜️'
+                          if (['mp4', 'webm', 'ogg', 'mov', 'm4v'].includes(ext)) return '🎞️'
+                          if (['mp3', 'wav', 'm4a', 'aac'].includes(ext)) return '🎧'
+                          if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg'].includes(ext)) return '🖼️'
+                          return '📦'
+                        })()
+
+                        return (
+                          <div className={styles.fileAttachment}>
+                            <div className={styles.fileIcon} aria-hidden>{icon}</div>
+                            <div className={styles.fileBody}>
+                              <div className={styles.fileName} title={filename || content}>
+                                {filename || content}
+                              </div>
+                              <div className={styles.fileMeta}>
+                                {ext.toUpperCase()}{host ? ` · ${host}` : ''}
+                              </div>
+                            </div>
+                            <div className={styles.fileActions}>
+                              <a href={content} target="_blank" rel="noreferrer" className={styles.fileButton}>Open</a>
+                              <a href={content} download className={styles.fileButtonSecondary}>Download</a>
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
                     {isOwn && (
                       <div className={styles.avatar} aria-hidden>
@@ -430,20 +508,19 @@ export default function ChatWindow({
         <div className={styles.inputContainer}>
           <input
             type="file"
-            accept="image/*"
             ref={fileInputRef}
             style={{ display: 'none' }}
-            onChange={handleUploadImage}
+            onChange={handleUploadFile}
           />
           <button
             type="button"
             className={styles.sendButton}
-            title="Upload image"
-            aria-label="Upload image"
+            title="Upload file"
+            aria-label="Upload file"
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingImage}
+            disabled={uploadingFile}
           >
-            {uploadingImage ? (
+            {uploadingFile ? (
               <div className={styles.sendingSpinner}></div>
             ) : (
               <svg className={styles.sendIcon} viewBox="0 0 24 24">
