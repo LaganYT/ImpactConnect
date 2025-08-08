@@ -17,7 +17,8 @@ async function createBin(): Promise<string> {
       headers: { Accept: 'application/json' },
     })
     if (res.ok) {
-      const json: any = await res.json().catch(() => null)
+      type CreateBinResponse = { id?: string; bin?: string; name?: string; binId?: string } | null
+      const json: CreateBinResponse = await res.json().catch(() => null)
       const binId = json?.id || json?.bin || json?.name || json?.binId
       if (binId && typeof binId === 'string') return binId
     }
@@ -32,7 +33,8 @@ async function createBin(): Promise<string> {
       headers: { Accept: 'application/json' },
     })
     if (res.ok) {
-      const json: any = await res.json().catch(() => null)
+      type CreateBinResponse = { id?: string; bin?: string; name?: string; binId?: string } | null
+      const json: CreateBinResponse = await res.json().catch(() => null)
       const binId = json?.id || json?.bin || json?.name || json?.binId
       if (binId && typeof binId === 'string') return binId
     }
@@ -72,8 +74,9 @@ async function tryApiUpload(binId: string, file: File): Promise<{ ok: boolean; l
           return { ok: true }
         }
         // capture body text to aid diagnostics
-        lastBody = await res.text().catch(() => undefined)
-      } catch (e) {
+        const txt = await res.text().catch(() => undefined)
+        lastBody = typeof txt === 'string' ? txt : undefined
+      } catch {
         // continue
       }
     }
@@ -99,7 +102,7 @@ async function tryWebUpload(binId: string, file: File): Promise<{ ok: boolean; l
     if (await attempt('files')) return { ok: true }
     if (await attempt('files[]')) return { ok: true }
     return { ok: false }
-  } catch (e) {
+  } catch {
     return { ok: false }
   }
 }
@@ -115,7 +118,7 @@ async function tryPutUpload(binId: string, file: File): Promise<{ ok: boolean; s
     })
     const body = await res.text().catch(() => undefined)
     return { ok: res.status >= 200 && res.status < 300, status: res.status, body }
-  } catch (e) {
+  } catch {
     return { ok: false }
   }
 }
@@ -161,9 +164,9 @@ async function resolveUploadedFileUrl(binId: string, fallbackFilename: string): 
 async function resolveRedirectedUrl(initialUrl: string): Promise<string> {
   // Try HEAD first to avoid downloading content
   try {
-    const head = await fetch(initialUrl, { method: 'HEAD', redirect: 'follow' as RequestRedirect })
-    if (head.ok || (head.status >= 300 && head.status < 400)) {
-      const finalUrl = (head as any).url as string | undefined
+    const headResp = await fetch(initialUrl, { method: 'HEAD', redirect: 'follow' as RequestRedirect })
+    if (headResp.ok || (headResp.status >= 300 && headResp.status < 400)) {
+      const finalUrl = (headResp as unknown as { url?: string }).url
       if (finalUrl && typeof finalUrl === 'string') return finalUrl
     }
   } catch {
@@ -171,13 +174,13 @@ async function resolveRedirectedUrl(initialUrl: string): Promise<string> {
   }
   // Fallback to a minimal GET with range to force redirect resolution
   try {
-    const get = await fetch(initialUrl, {
+    const getResp = await fetch(initialUrl, {
       method: 'GET',
       headers: { Range: 'bytes=0-0' },
       redirect: 'follow' as RequestRedirect,
     })
-    if (get.ok || (get.status >= 300 && get.status < 400)) {
-      const finalUrl = (get as any).url as string | undefined
+    if (getResp.ok || (getResp.status >= 300 && getResp.status < 400)) {
+      const finalUrl = (getResp as unknown as { url?: string }).url
       if (finalUrl && typeof finalUrl === 'string') return finalUrl
     }
   } catch {
@@ -202,7 +205,7 @@ export async function POST(request: Request) {
     // Prefer web upload (implicit bin creation), then PUT, then API upload
     const webAttempt = await tryWebUpload(binId, file)
     const putAttempt = webAttempt.ok ? null : await tryPutUpload(binId, file)
-    let apiAttempt = webAttempt.ok || (putAttempt && putAttempt.ok) ? { ok: true } as any : await tryApiUpload(binId, file)
+    const apiAttempt = webAttempt.ok || (putAttempt && putAttempt.ok) ? { ok: true } : await tryApiUpload(binId, file)
     if (!(webAttempt.ok || (putAttempt && putAttempt.ok) || apiAttempt.ok)) {
       return NextResponse.json(
         {
