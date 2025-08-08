@@ -64,7 +64,7 @@ export default function SettingsPanel() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [supabase])
 
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault()

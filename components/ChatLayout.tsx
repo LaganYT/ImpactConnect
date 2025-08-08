@@ -26,7 +26,10 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
 
   useEffect(() => {
     fetchChatSessions()
-    setupRealtimeSubscriptions()
+    const cleanup = setupRealtimeSubscriptions()
+    return () => {
+      if (typeof cleanup === 'function') cleanup()
+    }
   }, [])
 
   // Sync selection from selectedChatId when sessions load or id changes

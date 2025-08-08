@@ -23,6 +23,14 @@ type MemberRow = {
   } | null
 }
 
+type ListRoomMemberRow = {
+  user_id: string
+  role: 'admin' | 'member'
+  username: string | null
+  email: string | null
+  full_name: string | null
+}
+
 export default function RoomMembersSidebar({ user, selectedChat }: RoomMembersSidebarProps) {
   const [members, setMembers] = useState<MemberRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -35,7 +43,9 @@ export default function RoomMembersSidebar({ user, selectedChat }: RoomMembersSi
     fetchMembers()
     const cleanup = subscribeRealtime(roomId)
     return () => {
-      cleanup && cleanup()
+      if (typeof cleanup === 'function') {
+        cleanup()
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId])
@@ -49,7 +59,7 @@ export default function RoomMembersSidebar({ user, selectedChat }: RoomMembersSi
         .rpc('list_room_members_with_profiles', { p_room_id: roomId })
 
       if (!rpcError && Array.isArray(rpcData)) {
-        const rows: MemberRow[] = (rpcData as any[]).map((r) => ({
+        const rows: MemberRow[] = (rpcData as ListRoomMemberRow[]).map((r) => ({
           user_id: r.user_id,
           role: r.role,
           users: {
@@ -71,7 +81,12 @@ export default function RoomMembersSidebar({ user, selectedChat }: RoomMembersSi
         .order('joined_at', { ascending: true })
 
       if (error) throw error
-      setMembers((data || []) as unknown as MemberRow[])
+      const typed = (data || []) as unknown as {
+        user_id: string
+        role: 'admin' | 'member'
+        users: { id: string; username: string | null; email: string | null; full_name: string | null }
+      }[]
+      setMembers(typed)
     } catch (err) {
       console.error('Failed to fetch room members', err)
       setMembers([])

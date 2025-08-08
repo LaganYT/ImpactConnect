@@ -76,7 +76,7 @@ export default function Sidebar({
       }
 
       // Create new DM
-      const { data: _newDM, error: dmError } = await supabase
+      const { error: dmError } = await supabase
         .from('direct_messages')
         .insert({
           user1_id: user.id,
@@ -105,7 +105,7 @@ export default function Sidebar({
 
     try {
       // Use RPC to create room and add creator as admin in one transaction
-      const { data: _roomId, error: rpcError } = await supabase
+      const { error: rpcError } = await supabase
         .rpc('create_room_with_owner', {
           p_name: newRoomName,
           p_description: newRoomDescription,

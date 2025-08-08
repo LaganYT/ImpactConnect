@@ -32,8 +32,8 @@ export default function ChatWindow({
     const cleanupMsg = setupMessageSubscription()
     const cleanupReads = setupReadReceiptsSubscription()
     return () => {
-      cleanupMsg && cleanupMsg()
-      cleanupReads && cleanupReads()
+      if (typeof cleanupMsg === 'function') cleanupMsg()
+      if (typeof cleanupReads === 'function') cleanupReads()
     }
   }, [selectedChat])
 
