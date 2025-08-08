@@ -52,13 +52,15 @@ export default function SettingsPanel() {
       }
 
       // Prefer existing auth info immediately
-      const meta = (user.user_metadata ?? {}) as { full_name?: string; name?: string; user_name?: string }
+      const meta = (user.user_metadata ?? {}) as { full_name?: string; name?: string; user_name?: string; avatar_url?: string }
       const displayFromMeta = meta.full_name || meta.name || meta.user_name || ''
       const computedUsername = emailToUsername(user.email) || ''
+      const authAvatarUrl = meta.avatar_url || null
 
       setEmail(user.email ?? '')
       setFullName(displayFromMeta)
       setUsername('')
+      setAvatarUrl(authAvatarUrl)
 
       // Try loading profile row
       const { data: profile } = await supabase
@@ -71,7 +73,7 @@ export default function SettingsPanel() {
         setUsername(profile.username || computedUsername)
         setFullName(profile.full_name || displayFromMeta)
         setEmail(profile.email || user.email || '')
-        setAvatarUrl((profile as { avatar_url?: string | null }).avatar_url || null)
+        setAvatarUrl((profile as { avatar_url?: string | null }).avatar_url || authAvatarUrl || null)
         const serverTheme = (profile as { theme_preference?: 'light' | 'dark' | 'system' }).theme_preference
         if (serverTheme) setTheme(serverTheme)
       } else {
