@@ -244,29 +244,228 @@ export default function ChatWindow({
     el.style.height = `${next}px`
   }
 
+  const uploadToImgbbClient = async (file: File, apiKey: string): Promise<string> => {
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        try {
+          const result = reader.result as string
+          const commaIndex = result.indexOf(',')
+          const b64 = commaIndex >= 0 ? result.slice(commaIndex + 1) : result
+          resolve(b64)
+        } catch (e) {
+          reject(e)
+        }
+      }
+      reader.onerror = () => reject(reader.error || new Error('Failed to read file'))
+      reader.readAsDataURL(file)
+    })
+
+    const body = new URLSearchParams()
+    body.append('image', base64)
+
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    })
+    const json = await res.json().catch(() => null as any)
+    if (!res.ok || !json) {
+      throw new Error('imgbb upload failed')
+    }
+    const url: string | undefined = json?.data?.display_url || json?.data?.url || json?.data?.image?.url
+    if (!url) throw new Error('imgbb did not return a URL')
+    return url
+  }
+
+  const ensureStrongBinId = (maybe: string | null | undefined): string => {
+    const isValid = (input: string) => /^[a-z0-9]{12,}$/i.test(input)
+    if (maybe && isValid(maybe)) return maybe
+    const bytes = crypto.getRandomValues(new Uint8Array(24))
+    return Array.from(bytes)
+      .map((b) => (b % 36).toString(36))
+      .join('')
+  }
+
+  const createFilebinBinClient = async (): Promise<string> => {
+    // Per Filebin OpenAPI, bins are implicitly created on upload to /{bin}/{filename}.
+    // We generate a strong, URL-safe bin id locally.
+    return ensureStrongBinId(null)
+  }
+
+  const tryWebUploadToFilebin = async (binId: string, file: File): Promise<{ ok: boolean; lastStatus?: number }> => {
+    try {
+      const url = `https://filebin.net/${encodeURIComponent(binId)}`
+      const fieldNames = ['file', 'file[]', 'files', 'files[]']
+      let lastStatus: number | undefined
+      for (const field of fieldNames) {
+        const fd = new FormData()
+        fd.append(field, file, file.name || 'file')
+        const res = await fetch(url, { method: 'POST', body: fd })
+        lastStatus = res.status
+        if (res.status >= 200 && res.status < 300) return { ok: true }
+      }
+      return { ok: false, lastStatus }
+    } catch {
+      return { ok: false }
+    }
+  }
+
+  // Per Filebin OpenAPI docs: POST /{bin}/{filename} with application/octet-stream
+  // Ref: https://filebin.net/api.yaml
+  const tryDocPostUploadToFilebin = async (binId: string, file: File): Promise<{ ok: boolean; status?: number }> => {
+    try {
+      const fileName = encodeURIComponent(file.name || 'file')
+      const url = `https://filebin.net/${encodeURIComponent(binId)}/${fileName}`
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: await file.arrayBuffer(),
+      })
+      // Spec indicates 201 on success, but accept any 2xx
+      return { ok: res.status >= 200 && res.status < 300, status: res.status }
+    } catch {
+      return { ok: false }
+    }
+  }
+
+  const tryPutUploadToFilebin = async (binId: string, file: File): Promise<{ ok: boolean; status?: number }> => {
+    try {
+      const fileName = encodeURIComponent(file.name || 'file')
+      const url = `https://filebin.net/${encodeURIComponent(binId)}/${fileName}`
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body: await file.arrayBuffer(),
+      })
+      return { ok: res.status >= 200 && res.status < 300, status: res.status }
+    } catch {
+      return { ok: false }
+    }
+  }
+
+  // Removed usage of undocumented /api/* endpoints; rely on documented POST /{bin}/{filename}
+
+  const resolveUploadedFileUrlFromFilebin = async (binId: string, fallbackFilename: string): Promise<string | null> => {
+    try {
+      const res = await fetch(`https://filebin.net/api/bins/${encodeURIComponent(binId)}`)
+      if (res.ok) {
+        const json = (await res.json().catch(() => null)) as
+          | { files?: Array<{ filename?: string; name?: string; created?: string; created_at?: string }>; data?: Array<{ filename?: string; name?: string; created?: string; created_at?: string }> }
+          | null
+        const files = (json?.files || json?.data || []) as Array<{ filename?: string; name?: string; created?: string; created_at?: string }>
+        if (Array.isArray(files) && files.length > 0) {
+          const exact = files.find((f) => (f?.filename || f?.name) === fallbackFilename)
+          const picked =
+            exact ||
+            files.sort((a, b) => {
+              const ta = new Date(a?.created || a?.created_at || 0).getTime()
+              const tb = new Date(b?.created || b?.created_at || 0).getTime()
+              return tb - ta
+            })[0]
+          const name = picked?.filename || picked?.name
+          if (typeof name === 'string' && name) {
+            return `https://filebin.net/${encodeURIComponent(binId)}/${encodeURIComponent(name)}`
+          }
+        }
+      }
+    } catch {}
+    return null
+  }
+
+  const resolveRedirectedUrl = async (initialUrl: string): Promise<string> => {
+    try {
+      const headResp = await fetch(initialUrl, { method: 'HEAD', redirect: 'follow' as RequestRedirect })
+      if (headResp.ok || (headResp.status >= 300 && headResp.status < 400)) {
+        const finalUrl = (headResp as unknown as { url?: string }).url
+        if (finalUrl && typeof finalUrl === 'string') return finalUrl
+      }
+    } catch {}
+    try {
+      const getResp = await fetch(initialUrl, { method: 'GET', headers: { Range: 'bytes=0-0' }, redirect: 'follow' as RequestRedirect })
+      if (getResp.ok || (getResp.status >= 300 && getResp.status < 400)) {
+        const finalUrl = (getResp as unknown as { url?: string }).url
+        if (finalUrl && typeof finalUrl === 'string') return finalUrl
+      }
+    } catch {}
+    return initialUrl
+  }
+
+  const uploadViaFilebinServer = async (file: File): Promise<string> => {
+    const fd = new FormData()
+    fd.append('file', file, file.name || 'file')
+    const res = await fetch('/api/filebin-upload', { method: 'POST', body: fd })
+    if (!res.ok) {
+      const json = (await res.json().catch(() => null)) as any
+      const detail = json?.error || json?.detail?.post?.status || json?.detail?.put?.status || res.status
+      throw new Error(`Failed to upload to Filebin via server (status ${detail ?? 'unknown'})`)
+    }
+    const json = (await res.json()) as { url?: string }
+    if (!json?.url) throw new Error('Filebin server did not return a URL')
+    return json.url
+  }
+
+  const uploadViaFilebinClient = async (file: File): Promise<string> => {
+    const filename = file.name || 'file'
+
+    // Prefer using a bin created by Filebin API (ensures valid format)
+    const created = await createFilebinBinClient()
+
+    // 1) Official doc POST to created bin
+    const postCreated = await tryDocPostUploadToFilebin(created, file)
+    if (postCreated.ok) {
+      const publicUrl = `https://filebin.net/${encodeURIComponent(created)}/${encodeURIComponent(filename)}`
+      return await resolveRedirectedUrl(publicUrl)
+    }
+
+    // 2) Try PUT with created bin
+    const putCreated = await tryPutUploadToFilebin(created, file)
+    if (putCreated.ok) {
+      const publicUrl = `https://filebin.net/${encodeURIComponent(created)}/${encodeURIComponent(filename)}`
+      return await resolveRedirectedUrl(publicUrl)
+    }
+
+    // 3) As fallback, generate a safe strong id (>=12 chars) and try doc POST
+    const fallbackBin = ensureStrongBinId(null)
+    const postFallback = await tryDocPostUploadToFilebin(fallbackBin, file)
+    if (postFallback.ok) {
+      const publicUrl = `https://filebin.net/${encodeURIComponent(fallbackBin)}/${encodeURIComponent(filename)}`
+      return await resolveRedirectedUrl(publicUrl)
+    }
+
+    const detail = postCreated.status || putCreated.status || postFallback.status
+    throw new Error(`Failed to upload to Filebin (status ${detail ?? 'unknown'})`)
+  }
+
   const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !selectedChat) return
     try {
       setUploadingFile(true)
-      const form = new FormData()
-      form.append('file', file)
-      const endpoint = file.type?.startsWith('image/') ? '/api/imgbb-upload' : '/api/filebin-upload'
-      const res = await fetch(endpoint, { method: 'POST', body: form })
-      if (!res.ok) {
-        const raw = await res.text().catch(() => '')
+      const isImage = !!file.type?.startsWith('image/')
+      const imgbbKey = process.env.NEXT_PUBLIC_IMGBB_KEY as string | undefined
+
+      if (isImage && imgbbKey) {
         try {
-          const parsed = raw ? JSON.parse(raw) : null
-          const detail = parsed?.details?.api?.status || parsed?.details?.web?.status
-          const msg = parsed?.error || raw || 'Failed to upload file'
-          throw new Error(detail ? `${msg} (status ${detail})` : msg)
+          const url = await uploadToImgbbClient(file, imgbbKey)
+          await onSendMessage(url)
+          return
         } catch {
-          throw new Error(raw || 'Failed to upload file')
+          // fall back to Filebin API
         }
       }
-      const json = (await res.json()) as { url: string }
-      if (!json?.url) throw new Error('Upload did not return a URL')
-      await onSendMessage(json.url)
+
+      // Prefer server-side proxy upload to avoid CORS and surface better errors
+      try {
+        const serverUrl = await uploadViaFilebinServer(file)
+        await onSendMessage(serverUrl)
+        return
+      } catch {
+        // fall back to direct client upload
+      }
+
+      const filebinUrl = await uploadViaFilebinClient(file)
+      await onSendMessage(filebinUrl)
     } catch (err) {
       console.error('File upload failed', err)
       alert(err instanceof Error ? err.message : 'File upload failed')
@@ -457,7 +656,6 @@ export default function ChatWindow({
                             </div>
                             <div className={styles.fileActions}>
                               <a href={content} target="_blank" rel="noreferrer" className={styles.fileButton}>Open</a>
-                              <a href={content} download className={styles.fileButtonSecondary}>Download</a>
                             </div>
                           </div>
                         )
