@@ -55,6 +55,16 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
     isWindowFocusedRef.current = isWindowFocused
   }, [isWindowFocused])
 
+  // When user selects/opens a chat, clear its unread counter
+  useEffect(() => {
+    if (!selectedChat) return
+    setChatSessions((prev) => {
+      const current = prev.find((s) => s.id === selectedChat.id)
+      if (!current || (current.unread_count || 0) === 0) return prev
+      return prev.map((s) => (s.id === selectedChat.id ? { ...s, unread_count: 0 } : s))
+    })
+  }, [selectedChat])
+
   // Track window focus and request notifications
   useEffect(() => {
     const handleFocus = () => setIsWindowFocused(true)
@@ -85,8 +95,11 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
     if (!selectedChatId) return
     if (chatSessions.length === 0) return
     const found = chatSessions.find((c) => c.id === selectedChatId)
-    if (found) setSelectedChat(found)
-  }, [selectedChatId, chatSessions])
+    if (!found) return
+    if (found.id !== selectedChat?.id) {
+      setSelectedChat(found)
+    }
+  }, [selectedChatId, chatSessions, selectedChat?.id])
 
   const fetchChatSessions = async () => {
     try {
@@ -135,7 +148,37 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
         isOwner: rm.created_by === user.id
       })) || []
 
-      setChatSessions([...dmSessions, ...roomSessions])
+      const allSessions: ChatSession[] = [...dmSessions, ...roomSessions]
+
+      // Compute initial unread counts so refresh doesn't clear badges
+      const computeUnreadCount = async (session: ChatSession): Promise<number> => {
+        // Count all messages in the chat not sent by the current user
+        const totalQuery = supabase
+          .from('messages')
+          .select('id', { count: 'exact', head: true })
+          .neq('sender_id', user.id)
+        const { count: totalCount } = await (session.type === 'dm'
+          ? totalQuery.eq('direct_message_id', session.id)
+          : totalQuery.eq('room_id', session.id))
+
+        // Count how many of those messages have a read receipt by the current user
+        const readQuery = supabase
+          .from('message_reads')
+          .select('message_id, messages!inner(id)', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+        const { count: readCount } = await (session.type === 'dm'
+          ? readQuery.eq('messages.direct_message_id', session.id)
+          : readQuery.eq('messages.room_id', session.id))
+
+        const t = totalCount || 0
+        const r = readCount || 0
+        const unread = t - r
+        return unread > 0 ? unread : 0
+      }
+
+      const unreadCounts = await Promise.all(allSessions.map((s) => computeUnreadCount(s)))
+      const updatedSessions = allSessions.map((s, idx) => ({ ...s, unread_count: unreadCounts[idx] }))
+      setChatSessions(updatedSessions)
     } catch (error) {
       console.error('Error fetching chat sessions:', error)
     } finally {
@@ -171,13 +214,19 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
           const targetChatId = message.room_id || message.direct_message_id
           if (!targetChatId) return
 
+          // Increment unread count if not viewing that chat (or window unfocused)
+          const isViewingThisChat = selectedChatRef.current?.id === targetChatId
+          const shouldIncrement = !isViewingThisChat || !isWindowFocusedRef.current
+          if (shouldIncrement) {
+            setChatSessions((prev) => prev.map((s) => s.id === targetChatId ? { ...s, unread_count: (s.unread_count || 0) + 1 } : s))
+          }
+
           // Only notify if
           // - notification permission granted
           // - window not focused OR user is not already viewing this chat
           const permissionOk = hasNotificationPermission || (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted')
           if (!permissionOk) return
 
-          const isViewingThisChat = selectedChatRef.current?.id === targetChatId
           const shouldNotify = !isWindowFocusedRef.current || !isViewingThisChat
           if (!shouldNotify) return
 
@@ -208,8 +257,33 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
       )
       .subscribe()
 
+    // Clear unread badge instantly when reads are recorded for the current user
+    const readsSubscription = supabase
+      .channel('message_reads_badge')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'message_reads'
+        },
+        (payload) => {
+          const row = payload.new as unknown as { user_id: string }
+          if (!row || row.user_id !== userIdRef.current) return
+          const current = selectedChatRef.current
+          if (!current) return
+          setChatSessions((prev) => {
+            const found = prev.find((s) => s.id === current.id)
+            if (!found || (found.unread_count || 0) === 0) return prev
+            return prev.map((s) => (s.id === current.id ? { ...s, unread_count: 0 } : s))
+          })
+        }
+      )
+      .subscribe()
+
     return () => {
       supabase.removeChannel(messagesSubscription)
+      supabase.removeChannel(readsSubscription)
     }
   }
 
