@@ -80,18 +80,18 @@ export default function ChatWindow({
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select(`*, reads:message_reads(user_id)`) 
+        .select(`*, reads:message_reads(user_id), sender:users!messages_sender_id_fkey(id, avatar_url, full_name, email, username)`) 
         .eq(selectedChat.type === 'dm' ? 'direct_message_id' : 'room_id', selectedChat.id)
         .order('created_at', { ascending: true })
 
       if (error) throw error
-      const msgs = (data || []) as (Message & { reads?: { user_id: string }[] })[]
+      const msgs = (data || []) as (Message & { reads?: { user_id: string }[]; sender?: { id: string; avatar_url?: string | null; full_name?: string | null; email?: string | null; username?: string | null } })[]
       const map: Record<string, string[]> = {}
       msgs.forEach(m => { map[m.id] = (m.reads || []).map(r => r.user_id) })
       setReadByMap(map)
       setMessages(msgs)
     } catch (error) {
-      console.error('Error fetching messages:', error)
+      console.error('Error fetching messages:', error instanceof Error ? error.message : error)
     } finally {
       setLoading(false)
     }
@@ -109,8 +109,19 @@ export default function ChatWindow({
         filter: selectedChat.type === 'dm' 
           ? `direct_message_id=eq.${selectedChat.id}`
           : `room_id=eq.${selectedChat.id}`
-      }, (payload) => {
-        const newMessage = payload.new as Message
+      }, async (payload) => {
+        const newMessage = payload.new as Message & { sender?: { id: string; avatar_url?: string | null; full_name?: string | null; email?: string | null; username?: string | null } }
+        // Hydrate sender profile for avatar/labels
+        try {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('id, avatar_url, full_name, email, username')
+            .eq('id', newMessage.sender_id)
+            .maybeSingle()
+          if (profile) {
+            ;(newMessage as any).sender = profile
+          }
+        } catch {}
         setMessages(prev => [...prev, newMessage])
       })
       .subscribe()
@@ -250,56 +261,90 @@ export default function ChatWindow({
           </div>
         ) : (
           <div className={styles.messages}>
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`${styles.message} ${
-                  message.sender_id === user.id ? styles.ownMessage : ''
-                }`}
-              >
-                <div className={styles.messageContent}>
-                  <div className={styles.messageSender}>
-                    {(() => {
-                      const explicitUsername = message.sender_username || null
-                      const derivedUsername = message.sender_id === user.id ? emailToUsername(user.email) : null
-                      const username = explicitUsername || derivedUsername || null
+            {messages.map((message) => {
+              const isOwn = message.sender_id === user.id
+              return (
+                <div
+                  key={message.id}
+                  className={`${styles.message} ${isOwn ? styles.ownMessage : ''}`}
+                >
+                  <div className={styles.messageRow}>
+                    {!isOwn && (
+                      <div className={styles.avatar} aria-hidden>
+                        {(() => {
+                          const a = message.sender?.avatar_url
+                          if (a) {
+                            return (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={a} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                            )
+                          }
+                          const initial = (message.sender?.full_name?.[0] || message.sender_username?.[0] || message.sender_email?.[0] || 'U').toUpperCase()
+                          return initial
+                        })()}
+                      </div>
+                    )}
+                    <div className={styles.messageContent}>
+                      <div className={styles.messageSender}>
+                        {(() => {
+                          const explicitUsername = message.sender_username || null
+                          const derivedUsername = isOwn ? emailToUsername(user.email) : null
+                          const username = explicitUsername || derivedUsername || null
 
-                      const explicitFullName = message.sender_name || null
-                      const derivedFullName = message.sender_id === user.id ? (user.user_metadata as { full_name?: string })?.full_name || null : null
-                      const fullName = explicitFullName || derivedFullName || null
+                          const explicitFullName = message.sender_name || null
+                          const derivedFullName = isOwn ? (user.user_metadata as { full_name?: string })?.full_name || null : null
+                          const fullName = explicitFullName || derivedFullName || null
 
-                      if (fullName && username) return `${fullName} (${username})`
-                      if (fullName) return fullName
-                      if (username) return username
-                      if (message.sender_email) return emailToUsername(message.sender_email) || message.sender_email
-                      return message.sender_id === user.id ? 'You' : 'Unknown'
-                    })()}
-                  </div>
-                  {/^https?:\/\//i.test(message.content) && /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\/i\.ibb\.co\/)/i.test(message.content) ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={message.content} alt="Shared image" style={{ maxWidth: '320px', borderRadius: 12 }} />
-                  ) : (
-                    <div className={styles.messageText}>{message.content}</div>
-                  )}
-                  <div className={styles.messageTime}>
-                    {formatTime(message.created_at)}
-                  </div>
-                  {message.sender_id === user.id && (
-                    <div className={styles.readReceipt}>
-                      {(() => {
-                        const readers = readByMap[message.id] || []
-                        if (selectedChat.type === 'dm') {
-                          const read = readers.some(rid => rid !== user.id)
-                          return read ? 'Read' : 'Sent'
-                        }
-                        const count = readers.filter(rid => rid !== user.id).length
-                        return count > 0 ? `Read by ${count}` : 'Sent'
-                      })()}
+                          if (fullName && username) return `${fullName} (${username})`
+                          if (fullName) return fullName
+                          if (username) return username
+                          if (message.sender_email) return emailToUsername(message.sender_email) || message.sender_email
+                          return isOwn ? 'You' : 'Unknown'
+                        })()}
+                      </div>
+                      {/https?:/.test(message.content) && /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\/i\.ibb\.co\/)/i.test(message.content) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={message.content} alt="Shared image" style={{ maxWidth: '320px', borderRadius: 12 }} />
+                      ) : (
+                        <div className={styles.messageText}>{message.content}</div>
+                      )}
                     </div>
-                  )}
+                    {isOwn && (
+                      <div className={styles.avatar} aria-hidden>
+                        {(() => {
+                          const a = message.sender?.avatar_url || (user.user_metadata as { avatar_url?: string })?.avatar_url
+                          if (a) {
+                            return (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={a} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                            )
+                          }
+                          const fullName = (user.user_metadata as { full_name?: string })?.full_name || message.sender?.full_name || null
+                          const initial = (fullName?.[0] || user.email?.[0] || message.sender_username?.[0] || 'U').toUpperCase()
+                          return initial
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                  <div className={`${styles.metaRow} ${isOwn ? styles.metaRight : styles.metaLeft}`}>
+                    <div className={styles.messageTime}>{formatTime(message.created_at)}</div>
+                    {isOwn && (
+                      <div className={styles.readReceipt}>
+                        {(() => {
+                          const readers = readByMap[message.id] || []
+                          if (selectedChat.type === 'dm') {
+                            const read = readers.some(rid => rid !== user.id)
+                            return read ? 'Read' : 'Sent'
+                          }
+                          const count = readers.filter(rid => rid !== user.id).length
+                          return count > 0 ? `Read by ${count}` : 'Sent'
+                        })()}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
             <div ref={messagesEndRef} />
           </div>
         )}
