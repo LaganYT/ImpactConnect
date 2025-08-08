@@ -18,12 +18,24 @@ export default function ChatWindow({
   selectedChat,
   onSendMessage
 }: ChatWindowProps) {
-  const [messages, setMessages] = useState<Message[]>([])
+  type SenderLite = {
+    id: string
+    avatar_url?: string | null
+    full_name?: string | null
+    email?: string | null
+    username?: string | null
+  }
+  type UIMessage = Omit<Message, 'sender'> & {
+    sender?: SenderLite
+    reads?: { user_id: string }[]
+  }
+  const [messages, setMessages] = useState<UIMessage[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const messageInputRef = useRef<HTMLTextAreaElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
@@ -85,11 +97,23 @@ export default function ChatWindow({
         .order('created_at', { ascending: true })
 
       if (error) throw error
-      const msgs = (data || []) as (Message & { reads?: { user_id: string }[]; sender?: { id: string; avatar_url?: string | null; full_name?: string | null; email?: string | null; username?: string | null } })[]
+      const msgs = (data || []) as UIMessage[]
       const map: Record<string, string[]> = {}
-      msgs.forEach(m => { map[m.id] = (m.reads || []).map(r => r.user_id) })
+      msgs.forEach((m) => {
+        map[m.id] = (m.reads || []).map((r: { user_id: string }) => r.user_id)
+      })
       setReadByMap(map)
-      setMessages(msgs)
+      // Normalize sender object to expected shape (defensive)
+      setMessages(msgs.map(m => ({
+        ...m,
+        sender: m.sender ? {
+          id: m.sender.id,
+          avatar_url: m.sender.avatar_url ?? null,
+          full_name: m.sender.full_name ?? null,
+          email: m.sender.email ?? null,
+          username: m.sender.username ?? null,
+        } : undefined
+      })))
     } catch (error) {
       console.error('Error fetching messages:', error instanceof Error ? error.message : error)
     } finally {
@@ -110,7 +134,7 @@ export default function ChatWindow({
           ? `direct_message_id=eq.${selectedChat.id}`
           : `room_id=eq.${selectedChat.id}`
       }, async (payload) => {
-        const newMessage = payload.new as Message & { sender?: { id: string; avatar_url?: string | null; full_name?: string | null; email?: string | null; username?: string | null } }
+        const newMessage = payload.new as UIMessage
         // Hydrate sender profile for avatar/labels
         try {
           const { data: profile } = await supabase
@@ -119,7 +143,18 @@ export default function ChatWindow({
             .eq('id', newMessage.sender_id)
             .maybeSingle()
           if (profile) {
-            ;(newMessage as any).sender = profile
+            const hydrated: UIMessage = {
+              ...newMessage,
+              sender: {
+                id: profile.id,
+                avatar_url: profile.avatar_url ?? null,
+                full_name: profile.full_name ?? null,
+                email: profile.email ?? null,
+                username: profile.username ?? null,
+              },
+            }
+            setMessages(prev => [...prev, hydrated])
+            return
           }
         } catch {}
         setMessages(prev => [...prev, newMessage])
@@ -155,19 +190,33 @@ export default function ChatWindow({
     }
   }
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const sendCurrentMessage = async () => {
     if (!newMessage.trim() || !selectedChat) return
-
     setSending(true)
     try {
       await onSendMessage(newMessage.trim())
       setNewMessage('')
+      // reset textarea height after send
+      if (messageInputRef.current) {
+        messageInputRef.current.style.height = 'auto'
+      }
     } catch (error) {
       console.error('Error sending message:', error)
     } finally {
       setSending(false)
     }
+  }
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await sendCurrentMessage()
+  }
+
+  const autoResizeTextArea = (el: HTMLTextAreaElement) => {
+    const maxHeight = 120
+    el.style.height = 'auto'
+    const next = Math.min(el.scrollHeight, maxHeight)
+    el.style.height = `${next}px`
   }
 
   const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -377,13 +426,26 @@ export default function ChatWindow({
               </svg>
             )}
           </button>
-          <input
-            type="text"
+          <textarea
+            ref={messageInputRef}
+            rows={1}
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={(e) => {
+              setNewMessage(e.target.value)
+              autoResizeTextArea(e.currentTarget)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                if (!sending && newMessage.trim()) {
+                  void sendCurrentMessage()
+                }
+              }
+            }}
             placeholder="Type a message..."
             className={styles.messageInput}
             disabled={sending}
+            style={{ overflow: 'hidden' }}
           />
           <button
             type="submit"
