@@ -269,7 +269,10 @@ export default function ChatWindow({
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString(),
     })
-    const json = await res.json().catch(() => null as any)
+    type ImgbbResponse = {
+      data?: { display_url?: string; url?: string; image?: { url?: string } }
+    }
+    const json = (await res.json().catch(() => null)) as ImgbbResponse | null
     if (!res.ok || !json) {
       throw new Error('imgbb upload failed')
     }
@@ -396,13 +399,20 @@ export default function ChatWindow({
     fd.append('file', file, file.name || 'file')
     const res = await fetch('/api/filebin-upload', { method: 'POST', body: fd })
     if (!res.ok) {
-      const json = (await res.json().catch(() => null)) as any
+      type FilebinServerResponse = {
+        url?: string
+        bin?: string
+        status?: number
+        error?: string
+        detail?: { post?: { status?: number; body?: string }; put?: { status?: number; body?: string } }
+      }
+      const json = (await res.json().catch(() => null)) as FilebinServerResponse | null
       const detail = json?.error || json?.detail?.post?.status || json?.detail?.put?.status || res.status
       throw new Error(`Failed to upload to Filebin via server (status ${detail ?? 'unknown'})`)
     }
-    const json = (await res.json()) as { url?: string }
-    if (!json?.url) throw new Error('Filebin server did not return a URL')
-    return json.url
+    const okJson = (await res.json()) as { url?: string }
+    if (!okJson?.url) throw new Error('Filebin server did not return a URL')
+    return okJson.url
   }
 
   const uploadViaFilebinClient = async (file: File): Promise<string> => {

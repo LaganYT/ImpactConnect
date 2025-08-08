@@ -19,15 +19,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing file' }, { status: 400 })
     }
 
+    const uploadedFile: File = file
     const binId = generateStrongBinId()
-    const filename = file.name || 'file'
+    const filename = uploadedFile.name || 'file'
     const targetUrl = `https://filebin.net/${encodeURIComponent(binId)}/${encodeURIComponent(filename)}`
 
     // Primary: POST per Filebin OpenAPI
     const postResp = await fetch(targetUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream' },
-      body: Buffer.from(await file.arrayBuffer()),
+      body: Buffer.from(await uploadedFile.arrayBuffer()),
     })
 
     if (postResp.status >= 200 && postResp.status < 300) {
@@ -41,8 +42,8 @@ export async function POST(req: Request) {
     // Fallback: try PUT
     const putResp = await fetch(targetUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': (file as any).type || 'application/octet-stream' },
-      body: Buffer.from(await file.arrayBuffer()),
+      headers: { 'Content-Type': uploadedFile.type || 'application/octet-stream' },
+      body: Buffer.from(await uploadedFile.arrayBuffer()),
     })
 
     if (putResp.status >= 200 && putResp.status < 300) {
