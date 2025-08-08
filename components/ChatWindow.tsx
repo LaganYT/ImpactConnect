@@ -363,12 +363,26 @@ export default function ChatWindow({
       console.error('Error sending message:', error)
     } finally {
       setSending(false)
-      // Return focus to the message input after sending
-      try {
-        messageInputRef.current?.focus()
-      } catch {}
     }
   }
+
+  // After sending completes, ensure the textarea regains focus
+  useEffect(() => {
+    if (sending) return
+    if (!selectedChat) return
+    const el = messageInputRef.current
+    if (!el) return
+    const id = window.requestAnimationFrame(() => {
+      try {
+        el.focus()
+        const length = el.value.length
+        el.setSelectionRange(length, length)
+      } catch {}
+    })
+    return () => {
+      try { window.cancelAnimationFrame(id) } catch {}
+    }
+  }, [sending, selectedChat])
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
