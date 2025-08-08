@@ -24,11 +24,16 @@ export default function ChatWindow({
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+  const [readByMap, setReadByMap] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
-    if (selectedChat) {
-      fetchMessages()
-      setupMessageSubscription()
+    if (!selectedChat) return
+    fetchMessages()
+    const cleanupMsg = setupMessageSubscription()
+    const cleanupReads = setupReadReceiptsSubscription()
+    return () => {
+      cleanupMsg && cleanupMsg()
+      cleanupReads && cleanupReads()
     }
   }, [selectedChat])
 
@@ -43,12 +48,16 @@ export default function ChatWindow({
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select(`*`)
+        .select(`*, reads:message_reads(user_id)`) 
         .eq(selectedChat.type === 'dm' ? 'direct_message_id' : 'room_id', selectedChat.id)
         .order('created_at', { ascending: true })
 
       if (error) throw error
-      setMessages(data || [])
+      const msgs = (data || []) as (Message & { reads?: { user_id: string }[] })[]
+      const map: Record<string, string[]> = {}
+      msgs.forEach(m => { map[m.id] = (m.reads || []).map(r => r.user_id) })
+      setReadByMap(map)
+      setMessages(msgs)
     } catch (error) {
       console.error('Error fetching messages:', error)
     } finally {
@@ -71,6 +80,30 @@ export default function ChatWindow({
       }, (payload) => {
         const newMessage = payload.new as Message
         setMessages(prev => [...prev, newMessage])
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }
+
+  const setupReadReceiptsSubscription = () => {
+    if (!selectedChat) return
+
+    const channel = supabase
+      .channel('message_reads')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'message_reads'
+      }, (payload) => {
+        const { message_id, user_id } = payload.new as { message_id: string, user_id: string }
+        setReadByMap(prev => {
+          const current = prev[message_id] || []
+          if (current.includes(user_id)) return prev
+          return { ...prev, [message_id]: [...current, user_id] }
+        })
       })
       .subscribe()
 
@@ -102,6 +135,17 @@ export default function ChatWindow({
     const date = new Date(timestamp)
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
+
+  useEffect(() => {
+    const markReadReceipts = async () => {
+      if (!selectedChat || messages.length === 0) return
+      const unseen = messages.filter(m => m.sender_id !== user.id && !(readByMap[m.id] || []).includes(user.id))
+      if (unseen.length === 0) return
+      const rows = unseen.map(m => ({ message_id: m.id, user_id: user.id }))
+      await supabase.from('message_reads').upsert(rows, { onConflict: 'message_id,user_id' })
+    }
+    markReadReceipts()
+  }, [messages, selectedChat])
 
   if (!selectedChat) {
     return (
@@ -180,6 +224,19 @@ export default function ChatWindow({
                   <div className={styles.messageTime}>
                     {formatTime(message.created_at)}
                   </div>
+                  {message.sender_id === user.id && (
+                    <div className={styles.readReceipt}>
+                      {(() => {
+                        const readers = readByMap[message.id] || []
+                        if (selectedChat.type === 'dm') {
+                          const read = readers.some(rid => rid !== user.id)
+                          return read ? 'Read' : 'Sent'
+                        }
+                        const count = readers.filter(rid => rid !== user.id).length
+                        return count > 0 ? `Read by ${count}` : 'Sent'
+                      })()}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

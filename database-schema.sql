@@ -260,3 +260,57 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.direct_messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.rooms;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.room_members; 
+
+-- Read receipts
+-- Track which users have read which messages
+create table if not exists public.message_reads (
+  message_id uuid not null references public.messages (id) on delete cascade,
+  user_id uuid not null references public.users (id) on delete cascade,
+  read_at timestamp with time zone not null default now(),
+  constraint message_reads_pkey primary key (message_id, user_id)
+);
+
+-- Index to speed up lookups by user
+create index if not exists idx_message_reads_user on public.message_reads using btree (user_id);
+
+-- Enable RLS for message_reads
+alter table public.message_reads enable row level security;
+
+-- Policies for message_reads
+-- Users can view read receipts for messages they are allowed to view
+create policy "Users can view reads for messages they can view" on public.message_reads
+  for select using (
+    exists (
+      select 1 from public.messages m
+      left join public.direct_messages dm on dm.id = m.direct_message_id
+      left join public.room_members rm on rm.room_id = m.room_id and rm.user_id = auth.uid()
+      where m.id = message_reads.message_id
+        and (
+          (m.direct_message_id is not null and (dm.user1_id = auth.uid() or dm.user2_id = auth.uid()))
+          or (m.room_id is not null and rm.user_id is not null)
+        )
+    )
+  );
+
+-- Users can insert read receipts for themselves only on messages they can view
+create policy "Users can mark messages as read" on public.message_reads
+  for insert with check (
+    user_id = auth.uid() and exists (
+      select 1 from public.messages m
+      left join public.direct_messages dm on dm.id = m.direct_message_id
+      left join public.room_members rm on rm.room_id = m.room_id and rm.user_id = auth.uid()
+      where m.id = message_reads.message_id
+        and (
+          (m.direct_message_id is not null and (dm.user1_id = auth.uid() or dm.user2_id = auth.uid()))
+          or (m.room_id is not null and rm.user_id is not null)
+        )
+    )
+  );
+
+-- Allow users to update their own read_at timestamp (for upserts)
+create policy "Users can update their own reads" on public.message_reads
+  for update using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+-- Realtime for read receipts
+alter publication supabase_realtime add table public.message_reads;

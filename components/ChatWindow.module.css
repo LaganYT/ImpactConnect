@@ -170,6 +170,13 @@
   align-self: flex-start;
 }
 
+.readReceipt {
+  font-size: 11px;
+  color: #667eea;
+  margin-top: 2px;
+  align-self: flex-start;
+}
+
 .messageForm {
   padding: 20px;
   border-top: 1px solid #e2e8f0;
