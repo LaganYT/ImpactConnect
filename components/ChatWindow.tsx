@@ -530,6 +530,13 @@ export default function ChatWindow({
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
+  const isDeletedMessage = (m: UIMessage): boolean => m.content.trim() === '[Deleted Message]'
+  const isEditedMessage = (m: UIMessage): boolean => {
+    if (!m.updated_at || !m.created_at) return false
+    // Consider edited if timestamps differ
+    return new Date(m.updated_at).getTime() !== new Date(m.created_at).getTime()
+  }
+
   const canEditMessage = (message: UIMessage) => message.sender_id === user.id
   const canDeleteMessage = (message: UIMessage) => {
     if (message.sender_id === user.id) return true
@@ -571,9 +578,10 @@ export default function ChatWindow({
     const content = editText.trim()
     if (!content) return
     try {
-      await supabase.from('messages').update({ content }).eq('id', editingId)
+      const nowIso = new Date().toISOString()
+      await supabase.from('messages').update({ content, updated_at: nowIso }).eq('id', editingId)
       // Optimistic update; realtime will also reflect
-      setMessages(prev => prev.map(m => m.id === editingId ? { ...m, content, updated_at: new Date().toISOString() } as UIMessage : m))
+      setMessages(prev => prev.map(m => m.id === editingId ? { ...m, content, updated_at: nowIso } as UIMessage : m))
     } catch (e) {
       console.error('Failed to edit message', e)
     } finally {
@@ -590,9 +598,10 @@ export default function ChatWindow({
     try {
       const ok = window.confirm('Delete this message?')
       if (!ok) return
-      await supabase.from('messages').delete().eq('id', id)
-      // Optimistic remove; realtime will also reflect
-      setMessages(prev => prev.filter(m => m.id !== id))
+      const nowIso = new Date().toISOString()
+      await supabase.from('messages').update({ content: '[Deleted Message]', updated_at: nowIso }).eq('id', id)
+      // Optimistic soft-delete; realtime will also reflect
+      setMessages(prev => prev.map(m => m.id === id ? { ...m, content: '[Deleted Message]', updated_at: nowIso } : m))
     } catch (e) {
       console.error('Failed to delete message', e)
     }
@@ -720,6 +729,9 @@ export default function ChatWindow({
                         })()}
                       </div>
                       {(() => {
+                        if (isDeletedMessage(message)) {
+                          return <div className={styles.deletedMessage}>[Deleted Message]</div>
+                        }
                         if (editingId === message.id && canEditMessage(message)) {
                           return (
                             <div className={styles.messageText} style={{ maxWidth: '100%' }}>
@@ -813,8 +825,11 @@ export default function ChatWindow({
                       </div>
                     )}
                   </div>
-                  <div className={`${styles.metaRow} ${isOwn ? styles.metaRight : styles.metaLeft}`}>
-                    <div className={styles.messageTime}>{formatTime(message.created_at)}</div>
+                   <div className={`${styles.metaRow} ${isOwn ? styles.metaRight : styles.metaLeft}`}>
+                    <div className={styles.messageTime}>
+                      {formatTime(message.created_at)}
+                      {isEditedMessage(message) && !isDeletedMessage(message) ? ' - edited' : ''}
+                    </div>
                     {isOwn && (
                       <div className={styles.readReceipt}>
                         {(() => {
@@ -924,8 +939,8 @@ export default function ChatWindow({
             const msg = messages.find(m => m.id === contextMenu.messageId)
             if (!msg) return null
             const items: Array<{ key: string; label: string; onClick: () => void; show: boolean }>= [
-              { key: 'edit', label: 'Edit', onClick: () => beginEdit(msg.id), show: canEditMessage(msg) },
-              { key: 'delete', label: 'Delete', onClick: () => handleDeleteMessage(msg.id), show: canDeleteMessage(msg) },
+              { key: 'edit', label: 'Edit', onClick: () => beginEdit(msg.id), show: canEditMessage(msg) && !isDeletedMessage(msg) },
+              { key: 'delete', label: 'Delete', onClick: () => handleDeleteMessage(msg.id), show: canDeleteMessage(msg) && !isDeletedMessage(msg) },
             ]
             return (
               <>

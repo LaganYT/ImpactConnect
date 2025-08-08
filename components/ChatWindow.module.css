@@ -226,6 +226,22 @@
   align-self: flex-start;
 }
 
+.deletedMessage {
+  background: var(--color-bubble-incoming);
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-muted-text);
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.ownMessage .deletedMessage {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
 .messageForm {
   padding: 20px;
   border-top: 1px solid var(--color-border);
