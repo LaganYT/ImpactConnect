@@ -455,14 +455,14 @@ export default function ChatWindow({
       const isImage = !!file.type?.startsWith('image/')
       const imgbbKey = process.env.NEXT_PUBLIC_IMGBB_KEY as string | undefined
 
-      if (isImage && imgbbKey) {
-        try {
-          const url = await uploadToImgbbClient(file, imgbbKey)
-          await onSendMessage(url)
-          return
-        } catch {
-          // fall back to Filebin API
+      // Images MUST go to imgbb; do not fall back to Filebin
+      if (isImage) {
+        if (!imgbbKey) {
+          throw new Error('Image uploads require imgbb. Missing NEXT_PUBLIC_IMGBB_KEY.')
         }
+        const url = await uploadToImgbbClient(file, imgbbKey)
+        await onSendMessage(url)
+        return
       }
 
       // Prefer server-side proxy upload to avoid CORS and surface better errors
