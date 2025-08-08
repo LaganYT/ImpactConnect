@@ -22,7 +22,7 @@ async function createBin(): Promise<string> {
       const binId = json?.id || json?.bin || json?.name || json?.binId
       if (binId && typeof binId === 'string') return binId
     }
-  } catch (_) {
+  } catch {
     // ignore and try fallback
   }
 
@@ -38,7 +38,7 @@ async function createBin(): Promise<string> {
       const binId = json?.id || json?.bin || json?.name || json?.binId
       if (binId && typeof binId === 'string') return binId
     }
-  } catch (_) {
+  } catch {
     // ignore; we'll generate a random bin id and rely on upload creating it implicitly
   }
 
@@ -139,12 +139,14 @@ async function resolveUploadedFileUrl(binId: string, fallbackFilename: string): 
   try {
     const res = await fetch(`https://filebin.net/api/bins/${encodeURIComponent(binId)}`)
     if (res.ok) {
-      const json: any = await res.json().catch(() => null)
-      const files: any[] = json?.files || json?.data || []
+      type BinFile = { filename?: string; name?: string; created?: string; created_at?: string }
+      type ListResponse = { files?: BinFile[]; data?: BinFile[] } | null
+      const json: ListResponse = await res.json().catch(() => null)
+      const files: BinFile[] = (json?.files || json?.data || []) as BinFile[]
       if (Array.isArray(files) && files.length > 0) {
         // Prefer exact name match, otherwise pick the latest by created timestamp if present
-        const exact = files.find((f: any) => (f?.filename || f?.name) === fallbackFilename)
-        const picked = exact || files.sort((a: any, b: any) => {
+        const exact = files.find((f) => (f?.filename || f?.name) === fallbackFilename)
+        const picked = exact || files.sort((a, b) => {
           const ta = new Date(a?.created || a?.created_at || 0).getTime()
           const tb = new Date(b?.created || b?.created_at || 0).getTime()
           return tb - ta
@@ -155,7 +157,7 @@ async function resolveUploadedFileUrl(binId: string, fallbackFilename: string): 
         }
       }
     }
-  } catch (_) {
+  } catch {
     // ignore and fallback
   }
   return null
@@ -200,7 +202,7 @@ export async function POST(request: Request) {
     }
 
     const filename = (file as File).name || 'file'
-    let binId = ensureBinIdStrength(providedBin || (await createBin()))
+    const binId = ensureBinIdStrength(providedBin || (await createBin()))
 
     // Prefer web upload (implicit bin creation), then PUT, then API upload
     const webAttempt = await tryWebUpload(binId, file)
