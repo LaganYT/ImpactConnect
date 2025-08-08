@@ -1,4 +1,4 @@
 ## TODO
 
-- Let users upload photos into chat
+- Notifications
 - Dark mode

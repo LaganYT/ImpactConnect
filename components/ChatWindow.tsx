@@ -22,6 +22,8 @@ export default function ChatWindow({
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
   const [readByMap, setReadByMap] = useState<Record<string, string[]>>({})
@@ -127,6 +129,29 @@ export default function ChatWindow({
     }
   }
 
+  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !selectedChat) return
+    try {
+      setUploadingImage(true)
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/imgbb-upload', { method: 'POST', body: form })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json.error || 'Failed to upload image')
+      }
+      const { url } = (await res.json()) as { url: string }
+      await onSendMessage(url)
+    } catch (err) {
+      console.error('Image upload failed', err)
+      alert(err instanceof Error ? err.message : 'Image upload failed')
+    } finally {
+      setUploadingImage(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -220,7 +245,12 @@ export default function ChatWindow({
                       return message.sender_id === user.id ? 'You' : 'Unknown'
                     })()}
                   </div>
-                  <div className={styles.messageText}>{message.content}</div>
+                  {/^https?:\/\//i.test(message.content) && /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\/i\.ibb\.co\/)/i.test(message.content) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={message.content} alt="Shared image" style={{ maxWidth: '320px', borderRadius: 12 }} />
+                  ) : (
+                    <div className={styles.messageText}>{message.content}</div>
+                  )}
                   <div className={styles.messageTime}>
                     {formatTime(message.created_at)}
                   </div>
@@ -247,6 +277,31 @@ export default function ChatWindow({
 
       <form onSubmit={handleSendMessage} className={styles.messageForm}>
         <div className={styles.inputContainer}>
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={handleUploadImage}
+          />
+          <button
+            type="button"
+            className={styles.sendButton}
+            title="Upload image"
+            aria-label="Upload image"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingImage}
+          >
+            {uploadingImage ? (
+              <div className={styles.sendingSpinner}></div>
+            ) : (
+              <svg className={styles.sendIcon} viewBox="0 0 24 24">
+                <path d="M19 13v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6" fill="none" stroke="currentColor" strokeWidth="2"/>
+                <path d="M16 6l-4-4-4 4" fill="none" stroke="currentColor" strokeWidth="2"/>
+                <path d="M12 2v14" fill="none" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+            )}
+          </button>
           <input
             type="text"
             value={newMessage}
