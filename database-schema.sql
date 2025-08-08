@@ -241,6 +241,26 @@ CREATE POLICY "Users can send messages in rooms they are members of" ON public.m
         )
     );
 
+-- Allow users to update their own messages (edit)
+create policy "Users can edit their own messages" on public.messages
+  for update using (sender_id = auth.uid())
+  with check (sender_id = auth.uid());
+
+-- Allow users to delete their own messages
+create policy "Users can delete their own messages" on public.messages
+  for delete using (sender_id = auth.uid());
+
+-- Allow room admins to delete any message in their rooms
+create policy "Room admins can delete any messages in their rooms" on public.messages
+  for delete using (
+    room_id is not null and exists (
+      select 1 from public.room_members rm
+      where rm.room_id = public.messages.room_id
+        and rm.user_id = auth.uid()
+        and rm.role = 'admin'
+    )
+  );
+
 -- Function to handle new user creation
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$

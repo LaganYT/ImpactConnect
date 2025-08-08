@@ -460,3 +460,78 @@
     height: 18px;
   }
 } 
+
+/* Context menu for message actions */
+.contextMenu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+}
+
+.contextMenuItem {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.contextMenuItem:hover {
+  background: var(--color-surface-2);
+}
+
+/* Inline edit styles */
+.editTextarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 14px;
+  background: var(--color-input-bg);
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+
+.editActions {
+  display: flex;
+  gap: 8px;
+}
+
+.editSave,
+.editCancel {
+  appearance: none;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.editSave {
+  background: #16a34a;
+  color: white;
+}
+
+.editSave:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.editCancel {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}

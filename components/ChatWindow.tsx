@@ -42,6 +42,16 @@ export default function ChatWindow({
   const [readByMap, setReadByMap] = useState<Record<string, string[]>>({})
   const [isWindowFocused, setIsWindowFocused] = useState(true)
   const [isTabVisible, setIsTabVisible] = useState(true)
+  // Context menu and edit state
+  const [contextMenu, setContextMenu] = useState<{
+    open: boolean
+    x: number
+    y: number
+    messageId: string
+  } | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState<string>('')
+  const [isRoomAdmin, setIsRoomAdmin] = useState<boolean>(false)
   // Typing indicator state
   const [typingOthers, setTypingOthers] = useState<string[]>([])
   const typingChannelRef = useRef<RealtimeChannel | null>(null)
@@ -83,6 +93,28 @@ export default function ChatWindow({
       if (typeof cleanupTyping === 'function') cleanupTyping()
     }
   }, [selectedChat])
+
+  // Determine if current user is admin of the selected room (for delete permissions)
+  useEffect(() => {
+    const fetchRole = async () => {
+      if (!selectedChat || selectedChat.type !== 'room') {
+        setIsRoomAdmin(false)
+        return
+      }
+      try {
+        const { data } = await supabase
+          .from('room_members')
+          .select('role')
+          .eq('room_id', selectedChat.id)
+          .eq('user_id', user.id)
+          .maybeSingle()
+        setIsRoomAdmin((data?.role as 'admin' | 'member' | undefined) === 'admin')
+      } catch {
+        setIsRoomAdmin(false)
+      }
+    }
+    fetchRole()
+  }, [selectedChat?.id, selectedChat?.type, supabase, user.id])
 
   useEffect(() => {
     scrollToBottom()
@@ -227,6 +259,33 @@ export default function ChatWindow({
           }
         } catch {}
         setMessages(prev => [...prev, newMessage])
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: selectedChat.type === 'dm'
+          ? `direct_message_id=eq.${selectedChat.id}`
+          : `room_id=eq.${selectedChat.id}`
+      }, (payload) => {
+        const updated = payload.new as UIMessage
+        setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, content: (updated as any).content, updated_at: (updated as any).updated_at } : m))
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'messages',
+        filter: selectedChat.type === 'dm'
+          ? `direct_message_id=eq.${selectedChat.id}`
+          : `room_id=eq.${selectedChat.id}`
+      }, (payload) => {
+        const oldRow = payload.old as { id: string }
+        setMessages(prev => prev.filter(m => m.id !== oldRow.id))
+        setReadByMap(prev => {
+          const copy = { ...prev }
+          delete copy[oldRow.id]
+          return copy
+        })
       })
       .subscribe()
 
@@ -471,6 +530,75 @@ export default function ChatWindow({
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
+  const canEditMessage = (message: UIMessage) => message.sender_id === user.id
+  const canDeleteMessage = (message: UIMessage) => {
+    if (message.sender_id === user.id) return true
+    if (selectedChat?.type === 'room' && isRoomAdmin) return true
+    return false
+  }
+
+  const openContextMenu = (e: React.MouseEvent, messageId: string) => {
+    e.preventDefault()
+    setContextMenu({ open: true, x: e.clientX, y: e.clientY, messageId })
+  }
+
+  useEffect(() => {
+    const onGlobalClick = () => setContextMenu(null)
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') {
+        setContextMenu(null)
+        setEditingId(null)
+      }
+    }
+    window.addEventListener('click', onGlobalClick)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('click', onGlobalClick)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [])
+
+  const beginEdit = (id: string) => {
+    const msg = messages.find(m => m.id === id)
+    if (!msg) return
+    setEditingId(id)
+    setEditText(msg.content)
+    setContextMenu(null)
+  }
+
+  const saveEdit = async () => {
+    if (!editingId) return
+    const content = editText.trim()
+    if (!content) return
+    try {
+      await supabase.from('messages').update({ content }).eq('id', editingId)
+      // Optimistic update; realtime will also reflect
+      setMessages(prev => prev.map(m => m.id === editingId ? { ...m, content, updated_at: new Date().toISOString() } as UIMessage : m))
+    } catch (e) {
+      console.error('Failed to edit message', e)
+    } finally {
+      setEditingId(null)
+    }
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+  }
+
+  const handleDeleteMessage = async (id: string) => {
+    setContextMenu(null)
+    try {
+      // eslint-disable-next-line no-alert
+      const ok = window.confirm('Delete this message?')
+      if (!ok) return
+      await supabase.from('messages').delete().eq('id', id)
+      // Optimistic remove; realtime will also reflect
+      setMessages(prev => prev.filter(m => m.id !== id))
+    } catch (e) {
+      console.error('Failed to delete message', e)
+    }
+  }
+
   // Fix: handle empty or invalid URLs gracefully
   const extractUrlParts = (url: string): { filename: string | null; extension: string | null; host: string | null } => {
     if (!url || typeof url !== 'string') {
@@ -556,6 +684,7 @@ export default function ChatWindow({
                 <div
                   key={message.id}
                   className={`${styles.message} ${isOwn ? styles.ownMessage : ''}`}
+                  onContextMenu={(e) => openContextMenu(e, message.id)}
                 >
                   <div className={styles.messageRow}>
                     {!isOwn && (
@@ -592,6 +721,22 @@ export default function ChatWindow({
                         })()}
                       </div>
                       {(() => {
+                        if (editingId === message.id && canEditMessage(message)) {
+                          return (
+                            <div className={styles.messageText} style={{ maxWidth: '100%' }}>
+                              <textarea
+                                className={styles.editTextarea}
+                                value={editText}
+                                onChange={(e) => setEditText(e.target.value)}
+                                rows={3}
+                              />
+                              <div className={styles.editActions}>
+                                <button type="button" className={styles.editSave} onClick={saveEdit} disabled={!editText.trim()}>Save</button>
+                                <button type="button" className={styles.editCancel} onClick={cancelEdit}>Cancel</button>
+                              </div>
+                            </div>
+                          )
+                        }
                         const content = message.content
                         const isUrl = /^https?:/i.test(content)
                         if (!isUrl) return <div className={styles.messageText}>{content}</div>
@@ -770,6 +915,31 @@ export default function ChatWindow({
           </button>
         </div>
       </form>
+      {contextMenu && (
+        <div
+          className={styles.contextMenu}
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {(() => {
+            const msg = messages.find(m => m.id === contextMenu.messageId)
+            if (!msg) return null
+            const items: Array<{ key: string; label: string; onClick: () => void; show: boolean }>= [
+              { key: 'edit', label: 'Edit', onClick: () => beginEdit(msg.id), show: canEditMessage(msg) },
+              { key: 'delete', label: 'Delete', onClick: () => handleDeleteMessage(msg.id), show: canDeleteMessage(msg) },
+            ]
+            return (
+              <>
+                {items.filter(i => i.show).map((item) => (
+                  <button key={item.key} type="button" className={styles.contextMenuItem} onClick={item.onClick}>
+                    {item.label}
+                  </button>
+                ))}
+              </>
+            )
+          })()}
+        </div>
+      )}
     </div>
   )
 } 
