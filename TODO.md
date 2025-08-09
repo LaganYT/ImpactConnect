@@ -6,6 +6,7 @@
 
 ## Bug fixes
 - Replace all alerts with inputs with popups and alerts without input with toast notifications
+- Replace the pfp upload with the new non-api upload system (imgbb)
 
 
 **You are on nickname branch, this feature works but it could have more features and also could look nicer**
