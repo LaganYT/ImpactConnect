@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
+import rehypeSpoiler from "@/lib/markdownSpoiler";
 import dynamic from "next/dynamic";
 import { User, type RealtimeChannel } from "@supabase/supabase-js";
 import { ChatSession, Message } from "@/lib/types";
@@ -1198,10 +1199,11 @@ export default function ChatWindow({
                         if (!isUrl)
                           return (
                             <div className={styles.messageText}>
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm, remarkBreaks]}
-                                skipHtml
-                                components={{
+                               <ReactMarkdown
+                                 remarkPlugins={[remarkGfm, remarkBreaks]}
+                                 rehypePlugins={[rehypeSpoiler]}
+                                 skipHtml
+                                 components={{
                                   a: ({ children, ...props }) => (
                                     <a
                                       {...props}
@@ -1211,6 +1213,31 @@ export default function ChatWindow({
                                       {children}
                                     </a>
                                   ),
+                                   span: ({ node, ...props }) => {
+                                     const className = (props.className || '') as string
+                                     if (className.split(' ').includes('spoiler')) {
+                                       return (
+                                         <span
+                                           {...props}
+                                           className={`${styles.spoiler} ${className}`}
+                                           role="button"
+                                           tabIndex={0}
+                                           onClick={(e) => {
+                                             const el = e.currentTarget as HTMLElement
+                                             el.classList.toggle(styles.spoilerRevealed)
+                                           }}
+                                           onKeyDown={(e) => {
+                                             if (e.key === 'Enter' || e.key === ' ') {
+                                               e.preventDefault()
+                                               const el = e.currentTarget as HTMLElement
+                                               el.classList.toggle(styles.spoilerRevealed)
+                                             }
+                                           }}
+                                         />
+                                       )
+                                     }
+                                     return <span {...props} />
+                                   },
                                   img: ({ ...props }) => (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img

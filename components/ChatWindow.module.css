@@ -260,6 +260,31 @@
   color: #fff;
 }
 
+/* Spoiler styling */
+.spoiler {
+  position: relative;
+  cursor: pointer;
+  background: currentColor;
+  color: transparent;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
+.spoiler::selection {
+  background: transparent;
+}
+
+.spoiler:focus {
+  outline: 2px solid rgba(0,0,0,0.2);
+  outline-offset: 1px;
+}
+
+.spoiler.spoilerRevealed,
+.spoiler.spoilerRevealed * {
+  color: inherit;
+  background: transparent;
+}
+
 .messageTime {
   font-size: 11px;
   color: var(--color-muted-text);
