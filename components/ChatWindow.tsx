@@ -1069,8 +1069,11 @@ export default function ChatWindow({
   const getYouTubeId = (rawUrl: string): string | null => {
     try {
       const u = new URL(rawUrl);
-      if (/^(?:www\.)?youtu(?:\.be|be\.com)$/i.test(u.hostname)) {
-        if (u.hostname.toLowerCase() === "youtu.be") {
+      const host = u.hostname.toLowerCase().replace(/^www\./, "");
+
+      // Native YouTube hosts (youtube.com, youtu.be) and privacy-enhanced host (youtube-nocookie.com)
+      if (host === "youtu.be" || host === "youtube.com" || host === "youtube-nocookie.com") {
+        if (host === "youtu.be") {
           const id = u.pathname.split("/").filter(Boolean)[0];
           return id || null;
         }
@@ -1079,6 +1082,12 @@ export default function ChatWindow({
         const paths = u.pathname.split("/").filter(Boolean);
         // Handle embed URLs: /embed/{id}
         if (paths[0] === "embed" && paths[1]) return paths[1];
+      }
+
+      // ImpactTube watch URLs should behave like YouTube: extract ?v=
+      if (host === "impacttube.vercel.app") {
+        const idParam = u.searchParams.get("v");
+        if (idParam) return idParam;
       }
       return null;
     } catch {
