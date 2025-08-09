@@ -101,6 +101,27 @@ create index IF not exists idx_room_members_room on public.room_members using bt
 create index IF not exists idx_room_members_user on public.room_members using btree (user_id) TABLESPACE pg_default;
 create unique INDEX IF not exists users_username_unique_ci on public.users using btree (lower(username)) TABLESPACE pg_default;
 
+-- Per-user per-scope nicknames (room or DM)
+create table if not exists public.user_nicknames (
+  id uuid not null default gen_random_uuid(),
+  owner_user_id uuid not null references public.users (id) on delete cascade,
+  target_user_id uuid not null references public.users (id) on delete cascade,
+  room_id uuid null references public.rooms (id) on delete cascade,
+  direct_message_id uuid null references public.direct_messages (id) on delete cascade,
+  nickname text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint user_nicknames_pkey primary key (id),
+  constraint user_nicknames_scope check (
+    (room_id is not null and direct_message_id is null) or
+    (room_id is null and direct_message_id is not null)
+  ),
+  constraint user_nicknames_unique unique (owner_user_id, target_user_id, room_id, direct_message_id)
+) TABLESPACE pg_default;
+
+create index if not exists idx_user_nicknames_owner_room on public.user_nicknames using btree (owner_user_id, room_id);
+create index if not exists idx_user_nicknames_owner_dm on public.user_nicknames using btree (owner_user_id, direct_message_id);
+
 -- Triggers for username management
 create trigger trg_set_username_from_email BEFORE INSERT
 or
@@ -119,6 +140,7 @@ ALTER TABLE public.direct_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.room_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_nicknames ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for users
 CREATE POLICY "Users can view their own profile" ON public.users
@@ -303,6 +325,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.direct_messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.rooms;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.room_members; 
+ALTER PUBLICATION supabase_realtime ADD TABLE public.user_nicknames;
 
 -- Read receipts
 -- Track which users have read which messages
@@ -508,6 +531,24 @@ begin
   return rid;
 end;
 $$;
+
+-- RLS policies for user_nicknames: only the owner can see/manage their nicknames
+drop policy if exists "Owners can view their own nicknames" on public.user_nicknames;
+create policy "Owners can view their own nicknames" on public.user_nicknames
+  for select using (owner_user_id = auth.uid());
+
+drop policy if exists "Owners can create nicknames" on public.user_nicknames;
+create policy "Owners can create nicknames" on public.user_nicknames
+  for insert with check (owner_user_id = auth.uid());
+
+drop policy if exists "Owners can update their own nicknames" on public.user_nicknames;
+create policy "Owners can update their own nicknames" on public.user_nicknames
+  for update using (owner_user_id = auth.uid())
+  with check (owner_user_id = auth.uid());
+
+drop policy if exists "Owners can delete their own nicknames" on public.user_nicknames;
+create policy "Owners can delete their own nicknames" on public.user_nicknames
+  for delete using (owner_user_id = auth.uid());
 
 -- List room members with basic profiles regardless of users RLS, but only if caller is a member
 create or replace function public.list_room_members_with_profiles(

@@ -62,6 +62,8 @@ export default function ChatWindow({
   const [readByMap, setReadByMap] = useState<Record<string, string[]>>({});
   const [isWindowFocused, setIsWindowFocused] = useState(true);
   const [isTabVisible, setIsTabVisible] = useState(true);
+  // Per-chat nickname map for other users in this chat
+  const [nicknameMap, setNicknameMap] = useState<Record<string, string>>({});
   // Context menu and edit state
   const [contextMenu, setContextMenu] = useState<{
     open: boolean;
@@ -278,10 +280,12 @@ export default function ChatWindow({
     const cleanupMsg = setupMessageSubscription();
     const cleanupReads = setupReadReceiptsSubscription();
     const cleanupTyping = setupTypingPresence();
+    const cleanupNicks = setupNicknameSync();
     return () => {
       if (typeof cleanupMsg === "function") cleanupMsg();
       if (typeof cleanupReads === "function") cleanupReads();
       if (typeof cleanupTyping === "function") cleanupTyping();
+      if (typeof cleanupNicks === "function") cleanupNicks();
     };
   }, [selectedChat]);
 
@@ -762,6 +766,49 @@ export default function ChatWindow({
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  };
+
+  // Load and subscribe to nicknames scoped to this chat for current user
+  const setupNicknameSync = () => {
+    if (!selectedChat) return;
+    const isDm = selectedChat.type === "dm";
+    const scopeKey = isDm ? "direct_message_id" : "room_id";
+    const scopeVal = selectedChat.id;
+    const load = async () => {
+      try {
+        const { data } = await supabase
+          .from("user_nicknames")
+          .select("target_user_id, nickname")
+          .eq("owner_user_id", user.id)
+          .eq(scopeKey, scopeVal);
+        const map: Record<string, string> = {};
+        (data || []).forEach((r: { target_user_id: string; nickname: string }) => {
+          map[r.target_user_id] = r.nickname;
+        });
+        setNicknameMap(map);
+      } catch {
+        setNicknameMap({});
+      }
+    };
+    void load();
+    const channel = supabase
+      .channel(`nicknames:${scopeVal}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "user_nicknames",
+          filter: `${scopeKey}=eq.${scopeVal}`,
+        },
+        () => void load(),
+      )
+      .subscribe();
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch {}
     };
   };
 
@@ -1340,6 +1387,11 @@ export default function ChatWindow({
                     <div className={styles.messageContent}>
                       <div className={styles.messageSender}>
                         {(() => {
+                          // Prefer nickname set by current user for others
+                          if (!isOwn) {
+                            const nick = nicknameMap[message.sender_id];
+                            if (nick) return nick;
+                          }
                           const explicitUsername =
                             message.sender_username || null;
                           const derivedUsername = isOwn
