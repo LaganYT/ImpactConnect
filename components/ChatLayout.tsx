@@ -136,24 +136,27 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
 
       if (roomError) throw roomError
 
-      // For DMs: fetch partner usernames to label as "DM with [partner]"
+      // For DMs: fetch partner usernames and avatar to label and show icon
       const dmSessions: ChatSession[] = []
       for (const dm of (dms || [])) {
         const partnerId = dm.user1_id === user.id ? dm.user2_id : dm.user1_id
         let partnerName = 'Unknown'
+        let partnerAvatar: string | null = null
         try {
           const { data: partner } = await supabase
             .from('users')
-            .select('username, email')
+            .select('username, email, avatar_url')
             .eq('id', partnerId)
             .maybeSingle()
           partnerName = partner?.username || (partner?.email ? (emailToUsername(partner.email) || partner.email) : 'Unknown')
+          partnerAvatar = partner?.avatar_url ?? null
         } catch {}
         dmSessions.push({
           id: dm.id,
           type: 'dm',
           name: `DM with ${partnerName}`,
-          unread_count: 0
+          unread_count: 0,
+          avatarUrl: partnerAvatar
         })
       }
 

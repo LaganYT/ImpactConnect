@@ -328,7 +328,12 @@ export default function Sidebar({
               href={`/chat/${chat.id}`}
             >
               <div className={styles.chatAvatar}>
-                {chat.name[0]}
+                {chat.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={chat.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                ) : (
+                  (chat.name?.replace(/^DM with\s+/i, '')?.trim()?.[0] || chat.name?.[0] || 'U')
+                )}
               </div>
               <div className={styles.chatInfo}>
                 <h4 className={styles.chatName}>{chat.name}</h4>

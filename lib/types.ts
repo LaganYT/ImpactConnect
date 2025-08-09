@@ -59,4 +59,6 @@ export interface ChatSession {
   inviteCode?: string
   // True if the current session user is the owner/creator of the room
   isOwner?: boolean
+  // For DMs, the partner's avatar URL (if available)
+  avatarUrl?: string | null
 } 
