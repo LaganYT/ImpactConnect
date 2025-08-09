@@ -46,6 +46,7 @@ export default function ChatWindow({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null)
   const emojiContainerRef = useRef<HTMLDivElement | null>(null)
+  const gifContainerRef = useRef<HTMLDivElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
@@ -64,6 +65,15 @@ export default function ChatWindow({
   const [isRoomAdmin, setIsRoomAdmin] = useState<boolean>(false)
   // Emoji picker state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  // GIF picker state
+  const [showGifPicker, setShowGifPicker] = useState(false)
+  const [gifQuery, setGifQuery] = useState('')
+  const [gifLoading, setGifLoading] = useState(false)
+  const [gifResults, setGifResults] = useState<Array<{ id: string; url: string; preview: string }>>([])
+  type GifProvider = 'tenor' | 'giphy' | null
+  const tenorKey = (process.env.NEXT_PUBLIC_TENOR_KEY as string | undefined) || undefined
+  const giphyKey = (process.env.NEXT_PUBLIC_GIPHY_KEY as string | undefined) || undefined
+  const [gifProvider, setGifProvider] = useState<GifProvider>(null)
   // Typing indicator state
   const [typingOthers, setTypingOthers] = useState<string[]>([])
   const typingChannelRef = useRef<RealtimeChannel | null>(null)
@@ -125,6 +135,104 @@ export default function ChatWindow({
       document.removeEventListener('keydown', onKey)
     }
   }, [showEmojiPicker])
+
+  // Close GIF picker when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!showGifPicker) return
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node | null
+      if (gifContainerRef.current && target && !gifContainerRef.current.contains(target)) {
+        setShowGifPicker(false)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowGifPicker(false)
+    }
+    document.addEventListener('click', onDocClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('click', onDocClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [showGifPicker])
+
+  // Pick default GIF provider based on available keys
+  useEffect(() => {
+    if (tenorKey) setGifProvider('tenor')
+    else if (giphyKey) setGifProvider('giphy')
+    else setGifProvider(null)
+  }, [tenorKey, giphyKey])
+
+  const fetchTrendingGifs = async () => {
+    if (!gifProvider) return
+    setGifLoading(true)
+    try {
+      if (gifProvider === 'tenor' && tenorKey) {
+        const params = new URLSearchParams({ key: tenorKey, limit: '24', media_filter: 'gif' })
+        const res = await fetch(`https://tenor.googleapis.com/v2/featured?${params.toString()}`)
+        const json = await res.json().catch(() => null) as any
+        const items: Array<{ id: string; url: string; preview: string }> = (json?.results || []).map((r: any) => {
+          const gifUrl: string | undefined = r?.media_formats?.gif?.url || r?.media?.[0]?.gif?.url
+          const tinyUrl: string | undefined = r?.media_formats?.tinygif?.url || r?.media?.[0]?.tinygif?.url || gifUrl
+          return { id: String(r?.id || crypto.randomUUID()), url: gifUrl || '', preview: tinyUrl || gifUrl || '' }
+        }).filter((i: any) => i.url)
+        setGifResults(items)
+      } else if (gifProvider === 'giphy' && giphyKey) {
+        const params = new URLSearchParams({ api_key: giphyKey, limit: '24', rating: 'pg' })
+        const res = await fetch(`https://api.giphy.com/v1/gifs/trending?${params.toString()}`)
+        const json = await res.json().catch(() => null) as any
+        const items: Array<{ id: string; url: string; preview: string }> = (json?.data || []).map((r: any) => {
+          const gifUrl: string | undefined = r?.images?.downsized?.url || r?.images?.original?.url
+          const preview: string | undefined = r?.images?.preview_gif?.url || r?.images?.downsized_still?.url || gifUrl
+          return { id: String(r?.id || crypto.randomUUID()), url: gifUrl || '', preview: preview || gifUrl || '' }
+        }).filter((i: any) => i.url)
+        setGifResults(items)
+      }
+    } catch (e) {
+      console.error('Failed to load trending GIFs', e)
+      setGifResults([])
+    } finally {
+      setGifLoading(false)
+    }
+  }
+
+  const searchGifs = async (query: string) => {
+    if (!gifProvider) return
+    const q = query.trim()
+    if (!q) {
+      await fetchTrendingGifs()
+      return
+    }
+    setGifLoading(true)
+    try {
+      if (gifProvider === 'tenor' && tenorKey) {
+        const params = new URLSearchParams({ key: tenorKey, q, limit: '24', media_filter: 'gif' })
+        const res = await fetch(`https://tenor.googleapis.com/v2/search?${params.toString()}`)
+        const json = await res.json().catch(() => null) as any
+        const items: Array<{ id: string; url: string; preview: string }> = (json?.results || []).map((r: any) => {
+          const gifUrl: string | undefined = r?.media_formats?.gif?.url || r?.media?.[0]?.gif?.url
+          const tinyUrl: string | undefined = r?.media_formats?.tinygif?.url || r?.media?.[0]?.tinygif?.url || gifUrl
+          return { id: String(r?.id || crypto.randomUUID()), url: gifUrl || '', preview: tinyUrl || gifUrl || '' }
+        }).filter((i: any) => i.url)
+        setGifResults(items)
+      } else if (gifProvider === 'giphy' && giphyKey) {
+        const params = new URLSearchParams({ api_key: giphyKey, q, limit: '24', rating: 'pg' })
+        const res = await fetch(`https://api.giphy.com/v1/gifs/search?${params.toString()}`)
+        const json = await res.json().catch(() => null) as any
+        const items: Array<{ id: string; url: string; preview: string }> = (json?.data || []).map((r: any) => {
+          const gifUrl: string | undefined = r?.images?.downsized?.url || r?.images?.original?.url
+          const preview: string | undefined = r?.images?.preview_gif?.url || r?.images?.downsized_still?.url || gifUrl
+          return { id: String(r?.id || crypto.randomUUID()), url: gifUrl || '', preview: preview || gifUrl || '' }
+        }).filter((i: any) => i.url)
+        setGifResults(items)
+      }
+    } catch (e) {
+      console.error('GIF search failed', e)
+      setGifResults([])
+    } finally {
+      setGifLoading(false)
+    }
+  }
 
   // Determine if current user is admin of the selected room (for delete permissions)
   useEffect(() => {
@@ -946,6 +1054,83 @@ export default function ChatWindow({
               </svg>
             )}
           </button>
+          <div className={styles.emojiContainer} ref={gifContainerRef}>
+            <button
+              type="button"
+              className={styles.emojiButton}
+              title="Insert GIF"
+              aria-label="Insert GIF"
+              onClick={async () => {
+                setShowGifPicker(prev => !prev)
+                setShowEmojiPicker(false)
+                if (!showGifPicker) {
+                  // Initial load
+                  await fetchTrendingGifs()
+                }
+              }}
+              disabled={!gifProvider}
+            >
+              <span className={styles.gifLabel}>GIF</span>
+            </button>
+            {showGifPicker && (
+              <div className={styles.gifPopover} onClick={(e) => e.stopPropagation()}>
+                {!gifProvider ? (
+                  <div className={styles.gifEmpty}>
+                    <p>Configure <code>NEXT_PUBLIC_TENOR_KEY</code> or <code>NEXT_PUBLIC_GIPHY_KEY</code> to enable GIF search.</p>
+                  </div>
+                ) : (
+                  <div className={styles.gifPanel}>
+                    <div className={styles.gifSearchRow}>
+                      <input
+                        className={styles.gifSearchInput}
+                        value={gifQuery}
+                        onChange={(e) => setGifQuery(e.target.value)}
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            await searchGifs(gifQuery)
+                          }
+                        }}
+                        placeholder={`Search ${gifProvider === 'tenor' ? 'Tenor' : 'Giphy'} GIFs...`}
+                      />
+                      <button
+                        type="button"
+                        className={styles.gifSearchButton}
+                        onClick={() => searchGifs(gifQuery)}
+                        disabled={gifLoading}
+                      >
+                        {gifLoading ? '...' : 'Search'}
+                      </button>
+                    </div>
+                    <div className={styles.gifGrid}>
+                      {gifLoading ? (
+                        <div className={styles.gifLoading}>Loading...</div>
+                      ) : (
+                        gifResults.map(g => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={g.id}
+                            src={g.preview}
+                            alt="GIF"
+                            className={styles.gifItem}
+                            onClick={async () => {
+                              try {
+                                await onSendMessage(g.url)
+                                setShowGifPicker(false)
+                                setGifQuery('')
+                              } catch (e) {
+                                console.error('Failed to send GIF', e)
+                              }
+                            }}
+                          />
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <div className={styles.emojiContainer} ref={emojiContainerRef}>
             <button
               type="button"
