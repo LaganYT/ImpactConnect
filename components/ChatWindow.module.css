@@ -108,8 +108,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .messages {
@@ -138,7 +142,6 @@
   flex-shrink: 0;
   align-self: flex-end;
 }
-
 
 .message.ownMessage {
   align-items: flex-end;
@@ -200,12 +203,61 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   word-wrap: break-word;
   overflow-wrap: anywhere; /* allow breaking long unspaced strings */
-  white-space: pre-wrap; /* preserve newlines while wrapping */
+  /* white-space handled by remark-breaks rendering */
 }
 
 .ownMessage .messageText {
   background: #667eea;
   color: white;
+}
+
+/* Markdown content inside message bubbles */
+.messageText p {
+  margin: 0;
+}
+
+.messageText ul,
+.messageText ol {
+  margin: 0.25rem 0 0 1rem;
+  padding: 0 0 0 0.75rem;
+}
+
+.messageText li {
+  margin: 0.125rem 0;
+}
+
+.messageText code {
+  background: rgba(0, 0, 0, 0.08);
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.9em;
+}
+
+.ownMessage .messageText code {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.messageText pre {
+  background: rgba(0, 0, 0, 0.08);
+  padding: 10px;
+  border-radius: 8px;
+  overflow: auto;
+}
+
+.ownMessage .messageText pre {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.messageText a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.ownMessage .messageText a {
+  color: #fff;
 }
 
 .messageTime {
@@ -258,7 +310,7 @@
 }
 
 .typingIndicator::before {
-  content: '';
+  content: "";
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -268,9 +320,18 @@
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.25); opacity: 1; }
-  100% { transform: scale(1); opacity: 0.6; }
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
 }
 
 .inputContainer {
@@ -313,7 +374,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
   overflow: hidden;
 }
 
@@ -325,7 +386,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
   overflow: hidden;
   width: 380px;
   max-height: 420px;
@@ -483,12 +544,12 @@
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: rgba(0,0,0,0.06);
+  background: rgba(0, 0, 0, 0.06);
   font-size: 18px;
 }
 
 .ownMessage .fileIcon {
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .fileBody {
@@ -516,7 +577,7 @@
 }
 
 .ownMessage .fileMeta {
-  color: rgba(255,255,255,0.9);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .fileActions {
@@ -552,45 +613,45 @@
 }
 
 .ownMessage .fileButtonSecondary {
-  border-color: rgba(255,255,255,0.5);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 @media (max-width: 768px) {
   .header {
     padding: 16px;
   }
-  
+
   .chatName {
     font-size: 16px;
   }
-  
+
   .messages {
     padding: 16px;
     gap: 12px;
   }
-  
+
   .messageContent {
     max-width: 85%;
   }
-  
+
   .messageForm {
     padding: 16px;
   }
-  
+
   .inputContainer {
     gap: 8px;
   }
-  
+
   .sendButton {
     width: 36px;
     height: 36px;
   }
-  
+
   .sendIcon {
     width: 18px;
     height: 18px;
   }
-} 
+}
 
 /* Context menu for message actions */
 .contextMenu {
@@ -599,7 +660,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   padding: 6px;
   display: flex;
   flex-direction: column;

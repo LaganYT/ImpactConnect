@@ -1,11 +1,11 @@
-import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url)
-  const redirectTo = searchParams.get('redirect_to') ?? '/chat'
+  const { searchParams, origin } = new URL(request.url);
+  const redirectTo = searchParams.get("redirect_to") ?? "/chat";
 
-  const response = NextResponse.redirect(new URL(redirectTo, origin))
+  const response = NextResponse.redirect(new URL(redirectTo, origin));
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,22 +13,21 @@ export async function GET(request: NextRequest) {
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll()
+          return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          )
+            response.cookies.set(name, value, options),
+          );
         },
       },
-    }
-  )
+    },
+  );
 
-  const code = searchParams.get('code')
+  const code = searchParams.get("code");
   if (code) {
-    await supabase.auth.exchangeCodeForSession(code)
+    await supabase.auth.exchangeCodeForSession(code);
   }
 
-  return response
+  return response;
 }
-

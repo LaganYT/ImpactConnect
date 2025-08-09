@@ -95,7 +95,7 @@
 }
 
 .divider::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   left: 0;
@@ -173,12 +173,12 @@
     padding: 24px;
     margin: 16px;
   }
-  
+
   .title {
     font-size: 24px;
   }
-  
+
   .subtitle {
     font-size: 14px;
   }
-} 
+}

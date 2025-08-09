@@ -1,34 +1,36 @@
-import { createServerSupabaseClient } from '@/lib/supabaseServer'
-import { redirect } from 'next/navigation'
-import ChatLayout from '@/components/ChatLayout'
+import { createServerSupabaseClient } from "@/lib/supabaseServer";
+import { redirect } from "next/navigation";
+import ChatLayout from "@/components/ChatLayout";
 
 export default async function ChatLandingPage() {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/login')
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/login");
 
   // Prefer a room if any, else a DM
   const { data: room } = await supabase
-    .from('rooms')
-    .select('id')
+    .from("rooms")
+    .select("id")
     .limit(1)
-    .maybeSingle()
+    .maybeSingle();
 
   if (room?.id) {
-    redirect(`/chat/${room.id}`)
+    redirect(`/chat/${room.id}`);
   }
 
   const { data: dm } = await supabase
-    .from('direct_messages')
-    .select('id')
+    .from("direct_messages")
+    .select("id")
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
     .limit(1)
-    .maybeSingle()
+    .maybeSingle();
 
   if (dm?.id) {
-    redirect(`/chat/${dm.id}`)
+    redirect(`/chat/${dm.id}`);
   }
 
   // No chats yet, render the chat UI with empty selection
-  return <ChatLayout user={user} />
+  return <ChatLayout user={user} />;
 }

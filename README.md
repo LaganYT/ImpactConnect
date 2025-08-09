@@ -21,7 +21,7 @@ A real-time chat application built with Next.js 15, Supabase, and modern web tec
 
 ## Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
 - Supabase account
 
@@ -101,26 +101,31 @@ ImpactConnect/
 ## Key Features Implementation
 
 ### Authentication
+
 - Server-side authentication checks
 - Automatic redirects for authenticated/unauthenticated users
 - Google OAuth integration
 
 ### Real-time Messaging
+
 - Supabase Realtime subscriptions for instant message delivery
 - Optimistic UI updates
 - Message persistence
 
 ### Direct Messages
+
 - Unique DM threads between users
 - User lookup by email
 - Duplicate prevention
 
 ### Private Rooms
+
 - Invite-only access
 - Admin/member roles
 - Invite code generation
 
 ### Security
+
 - Row Level Security (RLS) policies
 - User-based data access control
 - Secure API endpoints

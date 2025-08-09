@@ -14,8 +14,8 @@
   --color-avatar-neutral-text: #374151;
   --color-label: #6b7280;
   --color-title: #111827;
-  --color-card-shadow: 0 4px 12px rgba(0,0,0,0.04);
-  --color-modal-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  --color-card-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  --color-modal-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
   --color-bubble-incoming: #ffffff;
   --color-badge-bg: #eef2ff;
   --color-badge-text: #374151;
@@ -40,7 +40,7 @@
   --color-label: #9ca3af;
   --color-title: #f3f4f6;
   --color-card-shadow: none;
-  --color-modal-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  --color-modal-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   --color-bubble-incoming: #1f2937;
   --color-badge-bg: #1f2937;
   --color-badge-text: #e5e7eb;
@@ -72,4 +72,3 @@ a {
   color: inherit;
   text-decoration: none;
 }
-

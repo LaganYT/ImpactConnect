@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import SettingsPanel from '@/components/SettingsPanel'
+import SettingsPanel from "@/components/SettingsPanel";
 
 export default function SettingsPage() {
-  return <SettingsPanel />
+  return <SettingsPanel />;
 }
