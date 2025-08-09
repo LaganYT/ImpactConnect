@@ -1270,77 +1270,17 @@ export default function ChatWindow({
                           );
                         }
 
-                        // ImpactStream -> vidsrc embed resolution
-                        const isImpactStream = (() => {
-                          try {
-                            const u = new URL(content);
-                            return (
-                              ["impactstream.vercel.app", "www.impactstream.vercel.app"].includes(
-                                u.hostname,
-                              ) && (/^\/tv\//.test(u.pathname) || /^\/movie\//.test(u.pathname))
-                            );
-                          } catch {
-                            return false;
-                          }
-                        })();
-
-                        if (isImpactStream) {
-                          const ImpactStreamEmbed: React.FC<{ pageUrl: string }> = ({ pageUrl }) => {
-                            const [embedUrl, setEmbedUrl] = useState<string | null>(null);
-                            const [loading, setLoading] = useState<boolean>(true);
-                            const [failed, setFailed] = useState<boolean>(false);
-                            useEffect(() => {
-                              let mounted = true;
-                              const run = async () => {
-                                try {
-                                  const res = await fetch(`/api/impactstream/resolve?url=${encodeURIComponent(pageUrl)}`, {
-                                    cache: "no-store",
-                                  });
-                                  const json = (await res.json().catch(() => null)) as { ok?: boolean; embedUrl?: string } | null;
-                                  if (!mounted) return;
-                                  if (res.ok && json?.ok && json.embedUrl) {
-                                    setEmbedUrl(json.embedUrl);
-                                  } else {
-                                    setFailed(true);
-                                  }
-                                } catch {
-                                  if (!mounted) return;
-                                  setFailed(true);
-                                } finally {
-                                  if (mounted) setLoading(false);
-                                }
-                              };
-                              run();
-                              return () => {
-                                mounted = false;
-                              };
-                            }, [pageUrl]);
-
-                            if (loading) {
-                              return (
-                                <div style={{ width: 360, height: 203, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 12, background: "var(--color-bg-muted)" }}>
-                                  <span style={{ opacity: 0.7 }}>Loading player...</span>
-                                </div>
-                              );
-                            }
-                            if (failed || !embedUrl) {
-                              return (
-                                <a href={pageUrl} target="_blank" rel="noopener noreferrer nofollow" style={{ color: "var(--color-text)" }}>
-                                  Open on ImpactStream
-                                </a>
-                              );
-                            }
-                            return (
-                              <iframe
-                                src={embedUrl}
-                                style={{ width: 360, height: 203, border: 0, borderRadius: 12 }}
-                                allowFullScreen
-                                loading="lazy"
-                              />
-                            );
-                          };
-
-                          return <ImpactStreamEmbed pageUrl={content} />;
+                        // If content is already a vidsrc embed URL (from server-side resolution), render directly
+                        const isVidsrc = /vidsrc\./i.test(content);
+                        if (isVidsrc) {
+                          return (
+                            <iframe
+                              src={content}
+                              style={{ width: 360, height: 203, border: 0, borderRadius: 12 }}
+                              allowFullScreen
+                              loading="lazy"
+                            />
+                          );
                         }
 
                         const { filename, extension, host } =

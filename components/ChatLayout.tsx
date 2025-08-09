@@ -387,11 +387,33 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
               .eq("id", user.id)
               .maybeSingle();
 
+            // If content is an ImpactStream URL, resolve to vidsrc embed URL first
+            const impactMatch = content.match(
+              /^https?:\/\/(?:www\.)?impactstream\.vercel\.app\/(movie|tv)\/\d+/i,
+            );
+            let finalContent = content;
+            if (impactMatch) {
+              try {
+                const res = await fetch(
+                  `/api/impactstream/resolve?url=${encodeURIComponent(content)}`,
+                  { cache: "no-store" },
+                );
+                const json = (await res
+                  .json()
+                  .catch(() => null)) as { ok?: boolean; embedUrl?: string } | null;
+                if (res.ok && json?.ok && json.embedUrl) {
+                  finalContent = json.embedUrl;
+                }
+              } catch {
+                // ignore resolver errors; send original content
+              }
+            }
+
             const senderUsername =
               profile?.username || emailToUsername(user.email) || null;
 
             const { error } = await supabase.from("messages").insert({
-              content,
+              content: finalContent,
               sender_id: user.id,
               sender_name:
                 (user.user_metadata as { full_name?: string })?.full_name ||
