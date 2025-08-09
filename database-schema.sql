@@ -388,6 +388,100 @@ begin
 end;
 $$;
 
+
+-- Polls
+-- Votes for poll messages (stored as JSON with { type: "poll", question, options[] } in messages.content)
+create table if not exists public.poll_votes (
+  message_id uuid not null references public.messages (id) on delete cascade,
+  user_id uuid not null references public.users (id) on delete cascade,
+  option_index integer not null check (option_index >= 0),
+  voted_at timestamp with time zone not null default now(),
+  constraint poll_votes_pkey primary key (message_id, user_id)
+);
+
+create index idx_poll_votes_message on public.poll_votes using btree (message_id);
+create index idx_poll_votes_user on public.poll_votes using btree (user_id);
+
+alter table public.poll_votes enable row level security;
+
+-- Users can view poll votes for messages they can view
+create policy "Users can view votes for messages they can view" on public.poll_votes
+  for select using (
+    exists (
+      select 1 from public.messages m
+      left join public.direct_messages dm on dm.id = m.direct_message_id
+      left join public.room_members rm on rm.room_id = m.room_id and rm.user_id = auth.uid()
+      where m.id = poll_votes.message_id
+        and (
+          (m.direct_message_id is not null and (dm.user1_id = auth.uid() or dm.user2_id = auth.uid()))
+          or (m.room_id is not null and rm.user_id is not null)
+        )
+    )
+  );
+
+-- Users can cast/update their own vote on messages they can view
+drop policy if exists "Users can cast their own vote" on public.poll_votes;
+create policy "Users can cast their own vote" on public.poll_votes
+  for insert with check (
+    user_id = auth.uid() and exists (
+      select 1 from public.messages m
+      left join public.direct_messages dm on dm.id = m.direct_message_id
+      left join public.room_members rm on rm.room_id = m.room_id and rm.user_id = auth.uid()
+      where m.id = poll_votes.message_id
+        and (
+          (m.direct_message_id is not null and (dm.user1_id = auth.uid() or dm.user2_id = auth.uid()))
+          or (m.room_id is not null and rm.user_id is not null)
+        )
+        and (
+          not (m.content::jsonb ? 'expires_at')
+          or ((m.content::jsonb ->> 'expires_at')::timestamptz > now())
+        )
+    )
+  );
+
+drop policy if exists "Users can update their own vote" on public.poll_votes;
+create policy "Users can update their own vote" on public.poll_votes
+  for update using (
+    user_id = auth.uid() and exists (
+      select 1 from public.messages m
+      left join public.direct_messages dm on dm.id = m.direct_message_id
+      left join public.room_members rm on rm.room_id = m.room_id and rm.user_id = auth.uid()
+      where m.id = poll_votes.message_id
+        and (
+          (m.direct_message_id is not null and (dm.user1_id = auth.uid() or dm.user2_id = auth.uid()))
+          or (m.room_id is not null and rm.user_id is not null)
+        )
+        and (
+          not (m.content::jsonb ? 'expires_at')
+          or ((m.content::jsonb ->> 'expires_at')::timestamptz > now())
+        )
+    )
+  )
+  with check (
+    user_id = auth.uid() and exists (
+      select 1 from public.messages m
+      left join public.direct_messages dm on dm.id = m.direct_message_id
+      left join public.room_members rm on rm.room_id = m.room_id and rm.user_id = auth.uid()
+      where m.id = poll_votes.message_id
+        and (
+          (m.direct_message_id is not null and (dm.user1_id = auth.uid() or dm.user2_id = auth.uid()))
+          or (m.room_id is not null and rm.user_id is not null)
+        )
+        and (
+          not (m.content::jsonb ? 'expires_at')
+          or ((m.content::jsonb ->> 'expires_at')::timestamptz > now())
+        )
+    )
+  );
+
+-- Allow users to delete their own vote
+create policy "Users can delete their own vote" on public.poll_votes
+  for delete using (user_id = auth.uid());
+
+-- Realtime for poll votes
+alter publication supabase_realtime add table public.poll_votes;
+
+
 -- Accept invite by code and add caller as member
 -- To change the return type, you must drop the function first if it already exists.
 drop function if exists public.accept_invite_by_code(text);

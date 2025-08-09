@@ -11,6 +11,8 @@ import { ChatSession, Message } from "@/lib/types";
 import { createClient } from "@/lib/supabase";
 import { emailToUsername } from "@/lib/usernames";
 import styles from "./ChatWindow.module.css";
+import PollCard from "./PollCard";
+import Modal from "./Modal";
 
 // Lazy-load emoji picker on the client
 const EmojiPicker = dynamic(
@@ -96,6 +98,134 @@ export default function ChatWindow({
   const giphyKey =
     (process.env.NEXT_PUBLIC_GIPHY_KEY as string | undefined) || undefined;
   const [gifProvider, setGifProvider] = useState<GifProvider>(null);
+  const [showCreatePoll, setShowCreatePoll] = useState(false);
+  
+  function PollCreator({
+    userId,
+    chat,
+    onClose,
+  }: {
+    userId: string;
+    chat: ChatSession;
+    onClose: () => void;
+  }) {
+    const [question, setQuestion] = useState("");
+    const [options, setOptions] = useState<string[]>(["", ""]);
+    const [expiresAtLocal, setExpiresAtLocal] = useState<string>("");
+    const [saving, setSaving] = useState(false);
+    const supabase = createClient();
+
+    const addOption = () => {
+      setOptions((prev) => (prev.length >= 10 ? prev : [...prev, ""]));
+    };
+    const removeOption = (idx: number) => {
+      setOptions((prev) => prev.filter((_, i) => i !== idx));
+    };
+    const updateOption = (idx: number, value: string) => {
+      setOptions((prev) => prev.map((v, i) => (i === idx ? value : v)));
+    };
+
+    const canSave = question.trim().length > 0 && options.filter((o) => o.trim()).length >= 2;
+
+    const createPoll = async () => {
+      if (!canSave) return;
+      setSaving(true);
+      try {
+        let expires_at: string | null = null;
+        if (expiresAtLocal && expiresAtLocal.trim()) {
+          const d = new Date(expiresAtLocal);
+          if (!isNaN(d.getTime())) {
+            if (d.getTime() <= Date.now()) {
+              alert("Expiration must be in the future");
+              setSaving(false);
+              return;
+            }
+            expires_at = d.toISOString();
+          }
+        }
+        const poll = {
+          type: "poll" as const,
+          question: question.trim(),
+          options: options.map((o) => o.trim()).filter(Boolean).slice(0, 10),
+          ...(expires_at ? { expires_at } : {}),
+        };
+        const payload = {
+          content: JSON.stringify(poll),
+          sender_id: userId,
+          sender_name: (user.user_metadata as { full_name?: string })?.full_name || null,
+          sender_email: user.email || null,
+          sender_username: emailToUsername(user.email) || null,
+          [chat.type === "dm" ? "direct_message_id" : "room_id"]: chat.id,
+        } as const;
+        const { error } = await supabase.from("messages").insert(payload);
+        if (error) throw error;
+        onClose();
+      } catch (e) {
+        console.error("Failed to create poll", e);
+        alert("Failed to create poll");
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    return (
+      <Modal open title="Create poll" onClose={onClose}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <label>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Question</div>
+            <input
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="What's your question?"
+              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--color-border)" }}
+            />
+          </label>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Options</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {options.map((opt, idx) => (
+                <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    value={opt}
+                    onChange={(e) => updateOption(idx, e.target.value)}
+                    placeholder={`Option ${idx + 1}`}
+                    style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid var(--color-border)" }}
+                  />
+                  {options.length > 2 && (
+                    <button type="button" onClick={() => removeOption(idx)} className={styles.editCancel}>
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div>
+                <button type="button" onClick={addOption} className={styles.inviteButton} disabled={options.length >= 10}>
+                  Add option
+                </button>
+              </div>
+            </div>
+          </div>
+          <label>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Expiration (optional)</div>
+            <input
+              type="datetime-local"
+              value={expiresAtLocal}
+              onChange={(e) => setExpiresAtLocal(e.target.value)}
+              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--color-border)" }}
+            />
+          </label>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button type="button" onClick={onClose} className={styles.editCancel}>
+              Cancel
+            </button>
+            <button type="button" onClick={createPoll} className={styles.editSave} disabled={!canSave || saving}>
+              {saving ? "Creating..." : "Create"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   // Minimal response types for Tenor and Giphy APIs
   type TenorMediaVariant = { url?: string };
@@ -914,6 +1044,14 @@ export default function ChatWindow({
   };
 
   const canEditMessage = (message: UIMessage) => message.sender_id === user.id;
+  const isPollMessage = (m: UIMessage): boolean => {
+    try {
+      const obj = JSON.parse(m.content);
+      return obj && obj.type === "poll" && Array.isArray(obj.options);
+    } catch {
+      return false;
+    }
+  };
   const canDeleteMessage = (message: UIMessage) => {
     if (message.sender_id === user.id) return true;
     if (selectedChat?.type === "room" && isRoomAdmin) return true;
@@ -1240,7 +1378,8 @@ export default function ChatWindow({
                         }
                         if (
                           editingId === message.id &&
-                          canEditMessage(message)
+                          canEditMessage(message) &&
+                          !isPollMessage(message)
                         ) {
                           return (
                             <div
@@ -1274,6 +1413,14 @@ export default function ChatWindow({
                           );
                         }
                         const content = message.content;
+                        // Poll rendering takes precedence over markdown/text
+                        if (isPollMessage(message)) {
+                          return (
+                            <div style={{ maxWidth: "100%" }}>
+                              <PollCard messageId={message.id} content={content} userId={user.id} />
+                            </div>
+                          );
+                        }
                         const isUrl = /^https?:/i.test(content);
                         if (!isUrl)
                           return (
@@ -1776,6 +1923,21 @@ export default function ChatWindow({
               </div>
             )}
           </div>
+          <div className={styles.emojiContainer}>
+            <button
+              type="button"
+              className={styles.emojiButton}
+              title="Create poll"
+              aria-label="Create poll"
+              onClick={() => setShowCreatePoll(true)}
+            >
+              <svg className={styles.sendIcon} viewBox="0 0 24 24" aria-hidden>
+                <rect x="4" y="10" width="3" height="8" rx="1" fill="currentColor" />
+                <rect x="10.5" y="6" width="3" height="12" rx="1" fill="currentColor" />
+                <rect x="17" y="3" width="3" height="15" rx="1" fill="currentColor" />
+              </svg>
+            </button>
+          </div>
           <textarea
             ref={messageInputRef}
             rows={1}
@@ -1819,6 +1981,13 @@ export default function ChatWindow({
           </button>
         </div>
       </form>
+      {showCreatePoll && (
+        <PollCreator
+          userId={user.id}
+          chat={selectedChat}
+          onClose={() => setShowCreatePoll(false)}
+        />
+      )}
       {contextMenu && (
         <div
           className={styles.contextMenu}
@@ -1838,7 +2007,7 @@ export default function ChatWindow({
                 key: "edit",
                 label: "Edit",
                 onClick: () => beginEdit(msg.id),
-                show: canEditMessage(msg) && !isDeletedMessage(msg),
+                show: canEditMessage(msg) && !isDeletedMessage(msg) && !isPollMessage(msg),
               },
               {
                 key: "delete",
