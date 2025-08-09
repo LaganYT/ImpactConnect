@@ -1392,7 +1392,7 @@ export default function ChatWindow({
                           if (ytId) {
                             return (
                               <iframe
-                                src={`https://www.youtube.com/embed/${encodeURIComponent(ytId)}`}
+                                src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(ytId)}`}
                                 title="YouTube video"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                                 allowFullScreen
