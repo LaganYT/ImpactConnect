@@ -79,6 +79,17 @@ export default function ChatWindow({
   const [gifResults, setGifResults] = useState<
     Array<{ id: string; url: string; preview: string }>
   >([]);
+  type UrlPreview = {
+    ok?: boolean;
+    url: string;
+    siteName?: string | null;
+    title?: string | null;
+    description?: string | null;
+    image?: string | null;
+    favicon?: string | null;
+    contentType?: string | null;
+  };
+  const [linkPreviews, setLinkPreviews] = useState<Record<string, UrlPreview | "loading" | "error">>({});
   type GifProvider = "tenor" | "giphy" | null;
   const tenorKey =
     (process.env.NEXT_PUBLIC_TENOR_KEY as string | undefined) || undefined;
@@ -1016,6 +1027,65 @@ export default function ChatWindow({
     }
   };
 
+  // Detect single-URL messages and fetch previews
+  useEffect(() => {
+    const controller = new AbortController();
+    const urlOnly = (s: string) => /^https?:\/\/\S+$/i.test(s.trim());
+    const isImageUrl = (s: string) =>
+      /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.avif|\.svg)(?:\?.*)?$/i.test(s) || /\/i\.ibb\.co\//i.test(s);
+    const isVideoUrl = (s: string) => /(\.mp4|\.webm|\.ogg|\.mov|\.m4v)(?:\?.*)?$/i.test(s);
+    const isAudioUrl = (s: string) => /(\.mp3|\.wav|\.ogg|\.m4a|\.aac)(?:\?.*)?$/i.test(s);
+    const isVidsrcUrl = (s: string) => /vidsrc\./i.test(s);
+
+    const tasks: Promise<void>[] = [];
+    messages.forEach((m) => {
+      const c = (m.content || "").trim();
+      if (!urlOnly(c)) return;
+      if (isImageUrl(c) || isVideoUrl(c) || isAudioUrl(c) || isVidsrcUrl(c)) return;
+      if (linkPreviews[m.id]) return;
+      setLinkPreviews((prev) => ({ ...prev, [m.id]: "loading" }));
+      const p = (async () => {
+        try {
+          const res = await fetch(`/api/url/preview?url=${encodeURIComponent(c)}`, {
+            cache: "no-store",
+            signal: controller.signal,
+          });
+          const json = (await res.json().catch(() => null)) as UrlPreview | null;
+          if (!json || !res.ok) {
+            setLinkPreviews((prev) => ({ ...prev, [m.id]: "error" }));
+            return;
+          }
+          setLinkPreviews((prev) => ({ ...prev, [m.id]: json }));
+        } catch {
+          setLinkPreviews((prev) => ({ ...prev, [m.id]: "error" }));
+        }
+      })();
+      tasks.push(p);
+    });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, selectedChat?.id]);
+
+  const getYouTubeId = (rawUrl: string): string | null => {
+    try {
+      const u = new URL(rawUrl);
+      if (/^(?:www\.)?youtu(?:\.be|be\.com)$/i.test(u.hostname)) {
+        if (u.hostname.toLowerCase() === "youtu.be") {
+          const id = u.pathname.split("/").filter(Boolean)[0];
+          return id || null;
+        }
+        const idParam = u.searchParams.get("v");
+        if (idParam) return idParam;
+        const paths = u.pathname.split("/").filter(Boolean);
+        // Handle embed URLs: /embed/{id}
+        if (paths[0] === "embed" && paths[1]) return paths[1];
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     const markReadReceipts = async () => {
       if (!selectedChat || messages.length === 0) return;
@@ -1313,6 +1383,79 @@ export default function ChatWindow({
                               style={{ maxWidth: 360 }}
                             />
                           );
+                        }
+
+                        // URL-only link preview and YouTube embed
+                        const singleUrl = /^https?:\/\/\S+$/i.test(content.trim());
+                        if (singleUrl) {
+                          const ytId = getYouTubeId(content.trim());
+                          if (ytId) {
+                            return (
+                              <iframe
+                                src={`https://www.youtube.com/embed/${encodeURIComponent(ytId)}`}
+                                title="YouTube video"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowFullScreen
+                                loading="lazy"
+                                style={{ width: 360, height: 203, border: 0, borderRadius: 12 }}
+                              />
+                            );
+                          }
+
+                          const preview = linkPreviews[message.id];
+                          if (preview && preview !== "loading" && preview !== "error") {
+                            return (
+                              <a
+                                className={styles.linkPreview}
+                                href={preview.url}
+                                target="_blank"
+                                rel="noopener noreferrer nofollow"
+                              >
+                                {preview.image ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={preview.image}
+                                    alt="Preview image"
+                                    className={styles.linkPreviewImage}
+                                  />
+                                ) : null}
+                                <div className={styles.linkPreviewBody}>
+                                  <div className={styles.linkPreviewTitle}>{preview.title || preview.url}</div>
+                                  {preview.description ? (
+                                    <div className={styles.linkPreviewDesc}>{preview.description}</div>
+                                  ) : null}
+                                  <div className={styles.linkPreviewFooter}>
+                                    {preview.favicon ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={preview.favicon}
+                                        alt=""
+                                        className={styles.linkPreviewFavicon}
+                                      />
+                                    ) : null}
+                                    <span className={styles.linkPreviewSite}>{preview.siteName || host || ""}</span>
+                                  </div>
+                                </div>
+                              </a>
+                            );
+                          }
+                          // Fallback while loading/if error: show simple open button
+                          if (preview === "loading") {
+                            return (
+                              <div className={styles.fileAttachment}>
+                                <div className={styles.fileIcon} aria-hidden>🔗</div>
+                                <div className={styles.fileBody}>
+                                  <div className={styles.fileName} title={content}>{content}</div>
+                                  <div className={styles.fileMeta}>{host || "Link"}</div>
+                                </div>
+                                <div className={styles.fileActions}>
+                                  <a href={content} target="_blank" rel="noreferrer" className={styles.fileButton}>
+                                    Open
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          }
                         }
 
                         const ext = (extension || "file").toLowerCase();
