@@ -1,77 +1,41 @@
 import { NextResponse } from "next/server";
 
-function isValidImpactStreamUrl(raw: string): boolean {
+function parseImpactStreamUrl(raw: string): { type: "movie" | "tv"; id: string } | null {
   try {
     const u = new URL(raw);
-    return (
-      ["impactstream.vercel.app", "www.impactstream.vercel.app"].includes(
-        u.hostname,
-      ) && (/^\/tv\//.test(u.pathname) || /^\/movie\//.test(u.pathname))
-    );
+    if (![
+      "impactstream.vercel.app",
+      "www.impactstream.vercel.app",
+    ].includes(u.hostname))
+      return null;
+    const m = u.pathname.match(/^\/(movie|tv)\/(\d+)/i);
+    if (!m) return null;
+    const type = m[1].toLowerCase() as "movie" | "tv";
+    const id = m[2];
+    return { type, id };
   } catch {
-    return false;
+    return null;
   }
-}
-
-function extractVidsrcUrl(html: string): string | null {
-  if (!html) return null;
-
-  // Collect potential candidates containing "vidsrc"
-  const candidates = new Set<string>();
-
-  // Generic absolute URLs with vidsrc in them
-  const absUrlRegex = /https?:\/\/[^\s"'<>]*vidsrc[^\s"'<>]*/gi;
-  let m: RegExpExecArray | null;
-  while ((m = absUrlRegex.exec(html)) !== null) {
-    candidates.add(m[0]);
-  }
-
-  // src attributes that include vidsrc
-  const srcAttrRegex = /src=["']([^"']*vidsrc[^"']*)["']/gi;
-  while ((m = srcAttrRegex.exec(html)) !== null) {
-    const val = m[1];
-    if (/^https?:/i.test(val)) candidates.add(val);
-  }
-
-  // JSON-like structures: "url":"...vidsrc..."
-  const jsonUrlRegex = /\burl\b\s*:\s*"([^"]*vidsrc[^"]*)"/gi;
-  while ((m = jsonUrlRegex.exec(html)) !== null) {
-    const val = m[1];
-    if (/^https?:/i.test(val)) candidates.add(val);
-  }
-
-  if (candidates.size === 0) return null;
-
-  // Prefer embeds
-  const prioritized = Array.from(candidates).sort((a, b) => {
-    const aScore = (/(?:\/embed|\?tmdb=|\?imdb=)/i.test(a) ? 1 : 0) +
-      (/vidsrc\.(?:to|xyz|cc|me|su|io)/i.test(a) ? 1 : 0);
-    const bScore = (/(?:\/embed|\?tmdb=|\?imdb=)/i.test(b) ? 1 : 0) +
-      (/vidsrc\.(?:to|xyz|cc|me|su|io)/i.test(b) ? 1 : 0);
-    return bScore - aScore;
-  });
-
-  return prioritized[0] || null;
 }
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const pageUrl = searchParams.get("url");
-    if (!pageUrl || !isValidImpactStreamUrl(pageUrl)) {
+    const parsed = pageUrl ? parseImpactStreamUrl(pageUrl) : null;
+    if (!parsed) {
       return NextResponse.json(
         { ok: false, error: "Invalid ImpactStream URL" },
         { status: 400 },
       );
     }
 
-    const res = await fetch(pageUrl, {
-      // Avoid caching too long; content rarely changes
-      // Next: mark as dynamic to prevent stale results during dev
+    const apiUrl = `https://impactstream.vercel.app/api/vidsrc?type=${encodeURIComponent(
+      parsed.type,
+    )}&id=${encodeURIComponent(parsed.id)}`;
+    const res = await fetch(apiUrl, {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept: "application/json,text/plain;q=0.9,*/*;q=0.8",
       },
       cache: "no-store",
     });
@@ -83,12 +47,22 @@ export async function GET(request: Request) {
       );
     }
 
-    const html = await res.text();
-    const embedUrl = extractVidsrcUrl(html);
+    const bodyText = await res.text();
+    let embedUrl: string | null = null;
+    try {
+      const json = JSON.parse(bodyText) as Record<string, unknown> | null;
+      const v = json && (json["embedUrl"] || json["url"] || json["vidsrc"]);
+      embedUrl = typeof v === "string" ? v : null;
+    } catch {
+      // not JSON; maybe raw URL as text
+      const trimmed = bodyText.trim();
+      if (/^https?:\/\//i.test(trimmed)) embedUrl = trimmed;
+    }
+
     if (!embedUrl) {
       return NextResponse.json(
-        { ok: false, error: "No vidsrc URL found" },
-        { status: 404 },
+        { ok: false, error: "No vidsrc URL in response" },
+        { status: 502 },
       );
     }
 
