@@ -541,6 +541,48 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
         </svg>
       </button>
 
+      {/* Mobile Top Bar */}
+      <div className={styles.mobileTopBar}>
+        <div className={styles.mobileTopBarContent}>
+          <div className={styles.mobileTopBarInfo}>
+            <h2 className={styles.mobileTopBarTitle}>
+              {selectedChat?.name || "Select a chat"}
+            </h2>
+            <p className={styles.mobileTopBarSubtitle}>
+              {selectedChat?.type === "dm" ? "Direct Message" : selectedChat?.type === "room" ? "Room" : ""}
+            </p>
+          </div>
+          {selectedChat?.type === "room" && selectedChat?.inviteCode && (
+            <button
+              className={styles.mobileTopBarInviteButton}
+              onClick={async () => {
+                const url = `${window.location.origin}/invite/${selectedChat.inviteCode}`;
+                try {
+                  await navigator.clipboard.writeText(url);
+                  toast.success("Invite link copied to clipboard");
+                } catch {
+                  // Fallback for browsers that don't support clipboard API
+                  const textArea = document.createElement("textarea");
+                  textArea.value = url;
+                  document.body.appendChild(textArea);
+                  textArea.select();
+                  document.execCommand("copy");
+                  document.body.removeChild(textArea);
+                  toast.success("Invite link copied to clipboard");
+                }
+              }}
+              title="Copy invite link"
+              aria-label="Copy invite link"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+              </svg>
+              Invite
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Full Screen Mobile Menu */}
       {showMobileMenu && (
         <div className={styles.fullScreenMobileMenu}>

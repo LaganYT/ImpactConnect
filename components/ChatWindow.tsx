@@ -81,6 +81,7 @@ export default function ChatWindow({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
   const [showInviteInput, setShowInviteInput] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
   // Emoji picker state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   // GIF picker state
@@ -1348,80 +1349,6 @@ export default function ChatWindow({
 
   return (
     <div className={styles.chatWindow}>
-      {/* Mobile Top Navbar */}
-      <div className={styles.mobileTopNav}>
-        <div className={styles.mobileChatInfo}>
-          <h2 className={styles.mobileChatName}>{selectedChat.name}</h2>
-          <p className={styles.mobileChatType}>
-            {selectedChat.type === "dm" ? "Direct Message" : "Room"}
-          </p>
-        </div>
-        <div className={styles.mobileTopActions}>
-          {selectedChat.type === "room" && (
-            <button
-              className={styles.mobileInviteButton}
-              onClick={async () => {
-                if (!selectedChat.inviteCode) return;
-                const url = `${window.location.origin}/invite/${selectedChat.inviteCode}`;
-                try {
-                  await navigator.clipboard.writeText(url);
-                  toast.success("Invite link copied to clipboard");
-                } catch {
-                  setShowInviteInput(true);
-                }
-              }}
-            >
-              Invite
-            </button>
-          )}
-          <button
-            className={styles.mobileMenuButton}
-            onClick={() => setShowMobileMenu(!showMobileMenu)}
-            aria-label="More options"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
-      {showMobileMenu && (
-        <div className={styles.mobileMenu} ref={mobileMenuRef}>
-          <div className={styles.mobileMenuItem} onClick={() => {
-            setShowEmojiPicker(true);
-            setShowMobileMenu(false);
-          }}>
-            <span className={styles.mobileMenuIcon}>😊</span>
-            <span>Emoji</span>
-          </div>
-          {gifProvider && (
-            <div className={styles.mobileMenuItem} onClick={() => {
-              setShowGifPicker(true);
-              setShowMobileMenu(false);
-            }}>
-              <span className={styles.mobileMenuIcon}>GIF</span>
-              <span>GIF</span>
-            </div>
-          )}
-          <div className={styles.mobileMenuItem} onClick={() => {
-            setShowCreatePoll(true);
-            setShowMobileMenu(false);
-          }}>
-            <span className={styles.mobileMenuIcon}>📊</span>
-            <span>Create Poll</span>
-          </div>
-          <div className={styles.mobileMenuItem} onClick={() => {
-            fileInputRef.current?.click();
-            setShowMobileMenu(false);
-          }}>
-            <span className={styles.mobileMenuIcon}>📎</span>
-            <span>Attach File</span>
-          </div>
-        </div>
-      )}
-
       {/* Mobile Picker Overlays */}
       {(showEmojiPicker || showGifPicker) && (
         <div 
