@@ -139,8 +139,23 @@ export default function AdminContextMenu({
       </div>
 
       {showBanModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modal}>
+        <div 
+          className={styles.modalOverlay}
+          onClick={(e) => {
+            // Close modal when clicking overlay
+            if (e.target === e.currentTarget) {
+              setShowBanModal(false);
+              setBanReason("");
+            }
+          }}
+        >
+          <div 
+            className={styles.modal}
+            onClick={(e) => {
+              // Prevent clicks inside modal from closing it
+              e.stopPropagation();
+            }}
+          >
             <h3>Ban {getDisplayName()}</h3>
             <p>This user will be removed from the room and prevented from rejoining.</p>
             
