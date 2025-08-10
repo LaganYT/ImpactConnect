@@ -8,6 +8,8 @@ export interface Toast {
   message: string;
   type: "success" | "error" | "info" | "warning";
   duration?: number;
+  onClick?: () => void;
+  clickable?: boolean;
 }
 
 interface ToastProps {
@@ -24,8 +26,23 @@ function ToastItem({ toast, onRemove }: ToastProps) {
     return () => clearTimeout(timer);
   }, [toast.id, toast.duration, onRemove]);
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Don't trigger onClick if clicking the close button
+    if ((e.target as HTMLElement).closest(`.${styles.close}`)) {
+      return;
+    }
+    
+    if (toast.onClick && toast.clickable) {
+      toast.onClick();
+      onRemove(toast.id);
+    }
+  };
+
   return (
-    <div className={`${styles.toast} ${styles[toast.type]}`}>
+    <div 
+      className={`${styles.toast} ${styles[toast.type]} ${toast.clickable ? styles.clickable : ''}`}
+      onClick={handleClick}
+    >
       <div className={styles.message}>{toast.message}</div>
       <button
         className={styles.close}
@@ -57,9 +74,9 @@ export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
 export function useToast() {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const addToast = (message: string, type: Toast["type"] = "info", duration?: number) => {
+  const addToast = (message: string, type: Toast["type"] = "info", duration?: number, onClick?: () => void, clickable?: boolean) => {
     const id = Math.random().toString(36).substr(2, 9);
-    const newToast: Toast = { id, message, type, duration };
+    const newToast: Toast = { id, message, type, duration, onClick, clickable };
     setToasts((prev) => [...prev, newToast]);
   };
 
@@ -67,10 +84,10 @@ export function useToast() {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
-  const success = (message: string, duration?: number) => addToast(message, "success", duration);
-  const error = (message: string, duration?: number) => addToast(message, "error", duration);
-  const info = (message: string, duration?: number) => addToast(message, "info", duration);
-  const warning = (message: string, duration?: number) => addToast(message, "warning", duration);
+  const success = (message: string, duration?: number, onClick?: () => void, clickable?: boolean) => addToast(message, "success", duration, onClick, clickable);
+  const error = (message: string, duration?: number, onClick?: () => void, clickable?: boolean) => addToast(message, "error", duration, onClick, clickable);
+  const info = (message: string, duration?: number, onClick?: () => void, clickable?: boolean) => addToast(message, "info", duration, onClick, clickable);
+  const warning = (message: string, duration?: number, onClick?: () => void, clickable?: boolean) => addToast(message, "warning", duration, onClick, clickable);
 
   return {
     toasts,

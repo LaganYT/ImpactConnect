@@ -4,10 +4,10 @@ import { createContext, useContext, ReactNode } from "react";
 import { useToast, ToastContainer } from "./Toast";
 
 interface ToastContextType {
-  success: (message: string, duration?: number) => void;
-  error: (message: string, duration?: number) => void;
-  info: (message: string, duration?: number) => void;
-  warning: (message: string, duration?: number) => void;
+  success: (message: string, duration?: number, onClick?: () => void, clickable?: boolean) => void;
+  error: (message: string, duration?: number, onClick?: () => void, clickable?: boolean) => void;
+  info: (message: string, duration?: number, onClick?: () => void, clickable?: boolean) => void;
+  warning: (message: string, duration?: number, onClick?: () => void, clickable?: boolean) => void;
 }
 
 const ToastContext = createContext<ToastContextType | null>(null);

@@ -48,6 +48,16 @@
   border-left: 4px solid #d97706;
 }
 
+.toast.clickable {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toast.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
 .message {
   flex: 1;
   margin-right: 8px;

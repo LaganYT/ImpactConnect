@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase";
+import { useToastContext } from "./ToastProvider";
 import Sidebar from "@/components/Sidebar";
 import ChatWindow from "@/components/ChatWindow";
 import SettingsPanel from "./SettingsPanel";
@@ -24,6 +25,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const supabase = createClient();
+  const toast = useToastContext();
 
   // Track window focus/visibility to avoid noisy notifications
   const [isWindowFocused, setIsWindowFocused] = useState(true);
@@ -283,20 +285,6 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
             );
           }
 
-          // Only notify if
-          // - notification permission granted
-          // - window/tab is not focused (avoid noise while actively using the app)
-          const permissionOk =
-            hasNotificationPermission ||
-            (typeof window !== "undefined" &&
-              "Notification" in window &&
-              Notification.permission === "granted");
-          if (!permissionOk) return;
-
-          const shouldNotify =
-            !isWindowFocusedRef.current || !isTabVisibleRef.current;
-          if (!shouldNotify) return;
-
           // Find session name for title
           const session = chatSessionsRef.current.find(
             (s) => s.id === targetChatId,
@@ -307,23 +295,55 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
             message.sender_username || message.sender_name || "Someone";
           const body = `${senderLabel}: ${message.content}`;
 
-          try {
-            const notif = new Notification(title, {
-              body,
-            });
-            notif.onclick = () => {
-              try {
-                window.focus();
-              } catch {}
-              if (window.location.pathname !== `/chat/${targetChatId}`) {
+          // Show toast notification when focused on tab but not on this conversation
+          const isFocusedOnTab = isWindowFocusedRef.current && isTabVisibleRef.current;
+          const isFocusedOnThisChat = selectedChatRef.current?.id === targetChatId;
+          
+          if (isFocusedOnTab && !isFocusedOnThisChat) {
+            // Show clickable toast notification for new message in different conversation
+            toast.info(
+              `${title}: ${body}`, 
+              4000, 
+              () => {
+                // Navigate to the conversation when toast is clicked
                 window.location.href = `/chat/${targetChatId}`;
-              }
-              try {
-                notif.close();
-              } catch {}
-            };
-          } catch {
-            // Silently ignore if notifications fail
+              },
+              true // Make it clickable
+            );
+            return;
+          }
+
+          // Show browser notification when tab/window is not focused
+          const shouldShowBrowserNotification =
+            !isWindowFocusedRef.current || !isTabVisibleRef.current;
+          
+          if (shouldShowBrowserNotification) {
+            // Only notify if notification permission granted
+            const permissionOk =
+              hasNotificationPermission ||
+              (typeof window !== "undefined" &&
+                "Notification" in window &&
+                Notification.permission === "granted");
+            if (!permissionOk) return;
+
+            try {
+              const notif = new Notification(title, {
+                body,
+              });
+              notif.onclick = () => {
+                try {
+                  window.focus();
+                } catch {}
+                if (window.location.pathname !== `/chat/${targetChatId}`) {
+                  window.location.href = `/chat/${targetChatId}`;
+                }
+                try {
+                  notif.close();
+                } catch {}
+              };
+            } catch {
+              // Silently ignore if notifications fail
+            }
           }
         },
       )
