@@ -138,6 +138,51 @@ export default function SettingsPanel() {
     }
   };
 
+  const uploadToImgbbClient = async (
+    file: File,
+    apiKey: string,
+  ): Promise<string> => {
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const result = reader.result as string;
+          const commaIndex = result.indexOf(",");
+          const b64 = commaIndex >= 0 ? result.slice(commaIndex + 1) : result;
+          resolve(b64);
+        } catch (e) {
+          reject(e);
+        }
+      };
+      reader.onerror = () =>
+        reject(reader.error || new Error("Failed to read file"));
+      reader.readAsDataURL(file);
+    });
+
+    const body = new URLSearchParams();
+    body.append("image", base64);
+
+    const res = await fetch(
+      `https://api.imgbb.com/1/upload?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString(),
+      },
+    );
+    type ImgbbResponse = {
+      data?: { display_url?: string; url?: string; image?: { url?: string } };
+    };
+    const json = (await res.json().catch(() => null)) as ImgbbResponse | null;
+    if (!res.ok || !json) {
+      throw new Error("imgbb upload failed");
+    }
+    const url: string | undefined =
+      json?.data?.display_url || json?.data?.url || json?.data?.image?.url;
+    if (!url) throw new Error("imgbb did not return a URL");
+    return url;
+  };
+
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingProfile(true);
@@ -165,17 +210,15 @@ export default function SettingsPanel() {
         nextAvatarUrl = null;
       } else if (avatarFile) {
         setUploadingAvatar(true);
-        const fileForm = new FormData();
-        fileForm.append("file", avatarFile);
-        const res = await fetch("/api/imgbb-upload", {
-          method: "POST",
-          body: fileForm,
-        });
-        if (!res.ok) {
-          const json = await res.json().catch(() => ({}));
-          throw new Error(json.error || "Failed to upload avatar");
+        const imgbbKey = process.env.NEXT_PUBLIC_IMGBB_KEY as string | undefined;
+        
+        if (!imgbbKey) {
+          throw new Error(
+            "Image uploads require imgbb. Missing NEXT_PUBLIC_IMGBB_KEY.",
+          );
         }
-        const { url } = (await res.json()) as { url: string };
+        
+        const url = await uploadToImgbbClient(avatarFile, imgbbKey);
         nextAvatarUrl = url;
       }
     } catch (avatarErr: unknown) {
