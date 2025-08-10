@@ -150,14 +150,13 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
         const partnerId = dm.user1_id === user.id ? dm.user2_id : dm.user1_id;
         let partnerName = "Unknown";
         let partnerAvatar: string | null = null;
-        // Apply nickname if present
+        // Apply universal nickname if present
         let nickname: string | null = null;
         try {
           const { data: nick } = await supabase
             .from("user_nicknames")
             .select("nickname")
             .eq("owner_user_id", user.id)
-            .eq("direct_message_id", dm.id)
             .eq("target_user_id", partnerId)
             .maybeSingle();
           nickname = nick?.nickname || null;

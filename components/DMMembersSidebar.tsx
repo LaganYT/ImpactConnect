@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase";
 import { emailToUsername } from "@/lib/usernames";
 // Reuse the same styles as the room members sidebar for consistent UI
 import styles from "./RoomMembersSidebar.module.css";
+import NicknameModal from "./NicknameModal";
 
 interface DMMembersSidebarProps {
   user: User;
@@ -31,6 +32,10 @@ export default function DMMembersSidebar({
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
   const [nicknameMap, setNicknameMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [nicknameModal, setNicknameModal] = useState<{
+    open: boolean;
+    targetUser: ParticipantRow | null;
+  }>({ open: false, targetUser: null });
   const supabase = createClient();
 
   const dmId = selectedChat?.type === "dm" ? selectedChat.id : null;
@@ -46,7 +51,7 @@ export default function DMMembersSidebar({
           event: "*",
           schema: "public",
           table: "user_nicknames",
-          filter: `direct_message_id=eq.${dmId}`,
+          filter: `owner_user_id=eq.${user.id}`,
         },
         () => fetchParticipants(),
       )
@@ -103,13 +108,12 @@ export default function DMMembersSidebar({
       }));
 
       setParticipants(rows);
-      // Fetch nicknames for this DM for current user
+      // Fetch universal nicknames for the current user
       try {
         const { data: nicks } = await supabase
           .from("user_nicknames")
           .select("target_user_id, nickname")
-          .eq("owner_user_id", user.id)
-          .eq("direct_message_id", dmId);
+          .eq("owner_user_id", user.id);
         const map: Record<string, string> = {};
         (nicks || []).forEach((n: { target_user_id: string; nickname: string }) => {
           map[n.target_user_id] = n.nickname;
@@ -192,44 +196,8 @@ export default function DMMembersSidebar({
                   <div className={styles.metaRow}>
                     <button
                       type="button"
-                      className={styles.editCancel}
-                      onClick={async () => {
-                        const current = nicknameMap[m.user_id] || "";
-                        const next = window.prompt("Set nickname", current || "");
-                        if (next === null) return;
-                        const trimmed = next.trim();
-                        try {
-                          if (!trimmed) {
-                            await supabase
-                              .from("user_nicknames")
-                              .delete()
-                              .eq("owner_user_id", user.id)
-                              .eq("direct_message_id", dmId)
-                              .eq("target_user_id", m.user_id);
-                          } else {
-                            await supabase
-                              .from("user_nicknames")
-                              .upsert(
-                                {
-                                  owner_user_id: user.id,
-                                  room_id: null,
-                                  direct_message_id: dmId,
-                                  target_user_id: m.user_id,
-                                  nickname: trimmed,
-                                  updated_at: new Date().toISOString(),
-                                },
-                                {
-                                  onConflict:
-                                    "owner_user_id,target_user_id,room_id,direct_message_id",
-                                },
-                              );
-                          }
-                          await fetchParticipants();
-                        } catch (e) {
-                          console.error("Failed to set nickname", e);
-                          alert("Failed to set nickname");
-                        }
-                      }}
+                      className={`${styles.nicknameButton} ${nicknameMap[m.user_id] ? styles.hasNickname : ""}`}
+                      onClick={() => setNicknameModal({ open: true, targetUser: m })}
                       title={nicknameMap[m.user_id] ? "Edit nickname" : "Set nickname"}
                     >
                       {nicknameMap[m.user_id] ? "Edit" : "Nick"}
@@ -240,6 +208,15 @@ export default function DMMembersSidebar({
             </div>
           ))}
         </div>
+      )}
+      {nicknameModal.open && nicknameModal.targetUser && (
+        <NicknameModal
+          open={nicknameModal.open}
+          onClose={() => setNicknameModal({ open: false, targetUser: null })}
+          currentUser={user}
+          targetUser={nicknameModal.targetUser}
+          currentNickname={nicknameMap[nicknameModal.targetUser.user_id]}
+        />
       )}
     </aside>
   );

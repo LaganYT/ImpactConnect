@@ -101,26 +101,20 @@ create index IF not exists idx_room_members_room on public.room_members using bt
 create index IF not exists idx_room_members_user on public.room_members using btree (user_id) TABLESPACE pg_default;
 create unique INDEX IF not exists users_username_unique_ci on public.users using btree (lower(username)) TABLESPACE pg_default;
 
--- Per-user per-scope nicknames (room or DM)
+-- Universal per-user nicknames (not scoped to specific chats)
 create table if not exists public.user_nicknames (
   id uuid not null default gen_random_uuid(),
   owner_user_id uuid not null references public.users (id) on delete cascade,
   target_user_id uuid not null references public.users (id) on delete cascade,
-  room_id uuid null references public.rooms (id) on delete cascade,
-  direct_message_id uuid null references public.direct_messages (id) on delete cascade,
   nickname text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint user_nicknames_pkey primary key (id),
-  constraint user_nicknames_scope check (
-    (room_id is not null and direct_message_id is null) or
-    (room_id is null and direct_message_id is not null)
-  ),
-  constraint user_nicknames_unique unique (owner_user_id, target_user_id, room_id, direct_message_id)
+  constraint user_nicknames_unique unique (owner_user_id, target_user_id)
 ) TABLESPACE pg_default;
 
-create index if not exists idx_user_nicknames_owner_room on public.user_nicknames using btree (owner_user_id, room_id);
-create index if not exists idx_user_nicknames_owner_dm on public.user_nicknames using btree (owner_user_id, direct_message_id);
+create index if not exists idx_user_nicknames_owner on public.user_nicknames using btree (owner_user_id);
+create index if not exists idx_user_nicknames_target on public.user_nicknames using btree (target_user_id);
 
 -- Triggers for username management
 create trigger trg_set_username_from_email BEFORE INSERT

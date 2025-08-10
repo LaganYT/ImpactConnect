@@ -769,19 +769,15 @@ export default function ChatWindow({
     };
   };
 
-  // Load and subscribe to nicknames scoped to this chat for current user
+  // Load and subscribe to universal nicknames for current user
   const setupNicknameSync = () => {
     if (!selectedChat) return;
-    const isDm = selectedChat.type === "dm";
-    const scopeKey = isDm ? "direct_message_id" : "room_id";
-    const scopeVal = selectedChat.id;
     const load = async () => {
       try {
         const { data } = await supabase
           .from("user_nicknames")
           .select("target_user_id, nickname")
-          .eq("owner_user_id", user.id)
-          .eq(scopeKey, scopeVal);
+          .eq("owner_user_id", user.id);
         const map: Record<string, string> = {};
         (data || []).forEach((r: { target_user_id: string; nickname: string }) => {
           map[r.target_user_id] = r.nickname;
@@ -793,14 +789,14 @@ export default function ChatWindow({
     };
     void load();
     const channel = supabase
-      .channel(`nicknames:${scopeVal}`)
+      .channel(`nicknames:${user.id}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "user_nicknames",
-          filter: `${scopeKey}=eq.${scopeVal}`,
+          filter: `owner_user_id=eq.${user.id}`,
         },
         () => void load(),
       )
