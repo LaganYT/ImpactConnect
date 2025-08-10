@@ -30,21 +30,55 @@ export default function BannedUsersModal({
   const fetchBannedUsers = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // First, get the banned users without the user details
+      const { data: bannedData, error: bannedError } = await supabase
         .from("banned_users")
-        .select(`
-          *,
-          user:users(id, username, email, full_name, avatar_url),
-          banned_by_user:users!banned_users_banned_by_fkey(id, username, email, full_name)
-        `)
+        .select("*")
         .eq("room_id", roomId)
         .order("banned_at", { ascending: false });
 
-      if (error) {
-        console.error("Supabase error:", error);
-        throw error;
+      if (bannedError) {
+        console.error("Supabase error:", bannedError);
+        throw bannedError;
       }
-      setBannedUsers(data || []);
+
+      if (!bannedData || bannedData.length === 0) {
+        setBannedUsers([]);
+        return;
+      }
+
+      // Get the user IDs for both the banned users and who banned them
+      const userIds = new Set<string>();
+      bannedData.forEach(ban => {
+        userIds.add(ban.user_id);
+        userIds.add(ban.banned_by);
+      });
+
+      // Fetch user details separately
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("id, username, email, full_name, avatar_url")
+        .in("id", Array.from(userIds));
+
+      if (userError) {
+        console.error("Supabase error fetching users:", userError);
+        throw userError;
+      }
+
+      // Create a map of user data
+      const userMap = new Map();
+      userData?.forEach(user => {
+        userMap.set(user.id, user);
+      });
+
+      // Combine the data
+      const combinedData = bannedData.map(ban => ({
+        ...ban,
+        user: userMap.get(ban.user_id) || null,
+        banned_by_user: userMap.get(ban.banned_by) || null,
+      }));
+
+      setBannedUsers(combinedData);
     } catch (error) {
       console.error("Failed to fetch banned users:", error);
       // Show a more user-friendly error message
