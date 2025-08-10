@@ -2002,18 +2002,29 @@ export default function ChatWindow({
               {uploadingFile ? (
                 <div className={styles.sendingSpinner}></div>
               ) : (
-                <svg
-                  className={styles.sendIcon}
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                <svg className={styles.sendIcon} viewBox="0 0 24 24">
+                  <path
+                    d="M19 13v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
+                  <path
+                    d="M16 6l-4-4-4 4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
+                  <path
+                    d="M12 2v14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
                 </svg>
               )}
             </button>
-            {gifProvider && (
+            <div className={styles.emojiContainer} ref={gifContainerRef}>
               <button
                 type="button"
                 className={styles.emojiButton}
@@ -2031,12 +2042,6 @@ export default function ChatWindow({
               >
                 <span className={styles.gifLabel}>GIF</span>
               </button>
-            )}
-          </div>
-
-          {/* GIF Picker - Moved outside desktopControls for mobile access */}
-          {gifProvider && (
-            <div className={styles.gifContainer}>
               {showGifPicker && (
                 <div
                   className={styles.gifPopover}
@@ -2102,102 +2107,101 @@ export default function ChatWindow({
                 </div>
               )}
             </div>
-          )}
-
-          <div className={styles.emojiContainer} ref={emojiContainerRef}>
-            <button
-              type="button"
-              className={styles.emojiButton}
-              title="Insert emoji"
-              aria-label="Insert emoji"
-              onClick={() => setShowEmojiPicker((prev) => !prev)}
-            >
-              <span role="img" aria-label="emoji">
-                😊
-              </span>
-            </button>
-            {showEmojiPicker && (
-              <div
-                className={styles.emojiPopover}
-                onClick={(e) => e.stopPropagation()}
+            <div className={styles.emojiContainer} ref={emojiContainerRef}>
+              <button
+                type="button"
+                className={styles.emojiButton}
+                title="Insert emoji"
+                aria-label="Insert emoji"
+                onClick={() => setShowEmojiPicker((prev) => !prev)}
               >
-                {/* width/height to keep picker compact; theme follows app theme */}
-                {typeof window !== "undefined" && (
-                  <EmojiPicker
-                    onEmojiClick={(emojiData) => {
-                      insertEmojiAtCaret(emojiData.emoji);
-                    }}
-                    width={320}
-                    height={420}
-                    theme={
-                      document.documentElement.getAttribute("data-theme") ===
-                      "dark"
-                        ? "dark"
-                        : "light"
-                    }
-                  />
-                )}
-              </div>
-            )}
+                <span role="img" aria-label="emoji">
+                  😊
+                </span>
+              </button>
+              {showEmojiPicker && (
+                <div
+                  className={styles.emojiPopover}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* width/height to keep picker compact; theme follows app theme */}
+                  {typeof window !== "undefined" && (
+                    <EmojiPicker
+                      onEmojiClick={(emojiData) => {
+                        insertEmojiAtCaret(emojiData.emoji);
+                      }}
+                      width={320}
+                      height={420}
+                      theme={
+                        document.documentElement.getAttribute("data-theme") ===
+                        "dark"
+                          ? "dark"
+                          : "light"
+                      }
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+            <div className={styles.emojiContainer}>
+              <button
+                type="button"
+                className={styles.emojiButton}
+                title="Create poll"
+                aria-label="Create poll"
+                onClick={() => setShowCreatePoll(true)}
+              >
+                <svg className={styles.sendIcon} viewBox="0 0 24 24" aria-hidden>
+                  <rect x="4" y="10" width="3" height="8" rx="1" fill="currentColor" />
+                  <rect x="10.5" y="6" width="3" height="12" rx="1" fill="currentColor" />
+                  <rect x="17" y="3" width="3" height="15" rx="1" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
           </div>
-          <div className={styles.emojiContainer}>
-            <button
-              type="button"
-              className={styles.emojiButton}
-              title="Create poll"
-              aria-label="Create poll"
-              onClick={() => setShowCreatePoll(true)}
-            >
-              <svg className={styles.sendIcon} viewBox="0 0 24 24" aria-hidden>
-                <rect x="4" y="10" width="3" height="8" rx="1" fill="currentColor" />
-                <rect x="10.5" y="6" width="3" height="12" rx="1" fill="currentColor" />
-                <rect x="17" y="3" width="3" height="15" rx="1" fill="currentColor" />
-              </svg>
-            </button>
-          </div>
-        </div>
 
-        <textarea
-          ref={messageInputRef}
-          rows={1}
-          value={newMessage}
-          onChange={(e) => {
-            setNewMessage(e.target.value);
-            autoResizeTextArea(e.currentTarget);
-            startTyping();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              if (!sending && newMessage.trim()) {
-                void sendCurrentMessage();
+          <textarea
+            ref={messageInputRef}
+            rows={1}
+            value={newMessage}
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+              autoResizeTextArea(e.currentTarget);
+              startTyping();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (!sending && newMessage.trim()) {
+                  void sendCurrentMessage();
+                }
               }
-            }
-          }}
-          onBlur={() => {
-            stopTyping();
-          }}
-          placeholder="Type a message..."
-          className={styles.messageInput}
-          disabled={sending}
-          style={{ overflow: "hidden" }}
-        />
-        <button
-          type="submit"
-          disabled={!newMessage.trim() || sending}
-          className={styles.sendButton}
-        >
-          {sending ? (
-            <div className={styles.sendingSpinner}></div>
-          ) : (
-            <svg className={styles.sendIcon} viewBox="0 0 24 24">
-              <path
-                d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
-                fill="currentColor"
-              />
-            </svg>
-          )}
-        </button>
+            }}
+            onBlur={() => {
+              stopTyping();
+            }}
+            placeholder="Type a message..."
+            className={styles.messageInput}
+            disabled={sending}
+            style={{ overflow: "hidden" }}
+          />
+          <button
+            type="submit"
+            disabled={!newMessage.trim() || sending}
+            className={styles.sendButton}
+          >
+            {sending ? (
+              <div className={styles.sendingSpinner}></div>
+            ) : (
+              <svg className={styles.sendIcon} viewBox="0 0 24 24">
+                <path
+                  d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
+                  fill="currentColor"
+                />
+              </svg>
+            )}
+          </button>
+        </div>
       </form>
       {showCreatePoll && (
         <PollCreator

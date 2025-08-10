@@ -614,11 +614,6 @@
   overflow: hidden;
 }
 
-.gifContainer {
-  position: relative;
-  display: inline-block;
-}
-
 .gifPopover {
   position: absolute;
   bottom: 48px;
@@ -1140,19 +1135,6 @@
 
   .emojiContainer {
     display: none;
-  }
-
-  .gifContainer {
-    display: none;
-  }
-
-  .gifContainer:has(.gifPopover) {
-    display: block;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 1001;
   }
 
   .messageInput {
