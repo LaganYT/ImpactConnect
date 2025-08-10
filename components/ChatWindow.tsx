@@ -2024,24 +2024,83 @@ export default function ChatWindow({
                 </svg>
               )}
             </button>
-            <div className={styles.emojiContainer} ref={gifContainerRef}>
+            <div className={styles.emojiContainer} ref={emojiContainerRef}>
               <button
                 type="button"
                 className={styles.emojiButton}
-                title="Insert GIF"
-                aria-label="Insert GIF"
-                onClick={async () => {
-                  setShowGifPicker((prev) => !prev);
-                  setShowEmojiPicker(false);
-                  if (!showGifPicker) {
-                    // Initial load
-                    await fetchTrendingGifs();
-                  }
-                }}
-                disabled={!gifProvider}
+                title="Insert emoji"
+                aria-label="Insert emoji"
+                onClick={() => setShowEmojiPicker((prev) => !prev)}
               >
-                <span className={styles.gifLabel}>GIF</span>
+                <span role="img" aria-label="emoji">
+                  😊
+                </span>
               </button>
+              {showEmojiPicker && (
+                <div
+                  className={styles.emojiPopover}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* width/height to keep picker compact; theme follows app theme */}
+                  {typeof window !== "undefined" && (
+                    <EmojiPicker
+                      onEmojiClick={(emojiData) => {
+                        insertEmojiAtCaret(emojiData.emoji);
+                      }}
+                      width={320}
+                      height={420}
+                      theme={
+                        document.documentElement.getAttribute("data-theme") ===
+                        "dark"
+                          ? "dark"
+                          : "light"
+                      }
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+            {gifProvider && (
+              <div className={styles.emojiContainer}>
+                <button
+                  type="button"
+                  className={styles.emojiButton}
+                  title="Insert GIF"
+                  aria-label="Insert GIF"
+                  onClick={async () => {
+                    setShowGifPicker((prev) => !prev);
+                    setShowEmojiPicker(false);
+                    if (!showGifPicker) {
+                      // Initial load
+                      await fetchTrendingGifs();
+                    }
+                  }}
+                  disabled={!gifProvider}
+                >
+                  <span className={styles.gifLabel}>GIF</span>
+                </button>
+              </div>
+            )}
+            <div className={styles.emojiContainer}>
+              <button
+                type="button"
+                className={styles.emojiButton}
+                title="Create poll"
+                aria-label="Create poll"
+                onClick={() => setShowCreatePoll(true)}
+              >
+                <svg className={styles.sendIcon} viewBox="0 0 24 24" aria-hidden>
+                  <rect x="4" y="10" width="3" height="8" rx="1" fill="currentColor" />
+                  <rect x="10.5" y="6" width="3" height="12" rx="1" fill="currentColor" />
+                  <rect x="17" y="3" width="3" height="15" rx="1" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* GIF Picker - Moved outside desktopControls for mobile access */}
+          {gifProvider && (
+            <div className={styles.gifContainer} ref={gifContainerRef}>
               {showGifPicker && (
                 <div
                   className={styles.gifPopover}
@@ -2107,58 +2166,7 @@ export default function ChatWindow({
                 </div>
               )}
             </div>
-            <div className={styles.emojiContainer} ref={emojiContainerRef}>
-              <button
-                type="button"
-                className={styles.emojiButton}
-                title="Insert emoji"
-                aria-label="Insert emoji"
-                onClick={() => setShowEmojiPicker((prev) => !prev)}
-              >
-                <span role="img" aria-label="emoji">
-                  😊
-                </span>
-              </button>
-              {showEmojiPicker && (
-                <div
-                  className={styles.emojiPopover}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* width/height to keep picker compact; theme follows app theme */}
-                  {typeof window !== "undefined" && (
-                    <EmojiPicker
-                      onEmojiClick={(emojiData) => {
-                        insertEmojiAtCaret(emojiData.emoji);
-                      }}
-                      width={320}
-                      height={420}
-                      theme={
-                        document.documentElement.getAttribute("data-theme") ===
-                        "dark"
-                          ? "dark"
-                          : "light"
-                      }
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-            <div className={styles.emojiContainer}>
-              <button
-                type="button"
-                className={styles.emojiButton}
-                title="Create poll"
-                aria-label="Create poll"
-                onClick={() => setShowCreatePoll(true)}
-              >
-                <svg className={styles.sendIcon} viewBox="0 0 24 24" aria-hidden>
-                  <rect x="4" y="10" width="3" height="8" rx="1" fill="currentColor" />
-                  <rect x="10.5" y="6" width="3" height="12" rx="1" fill="currentColor" />
-                  <rect x="17" y="3" width="3" height="15" rx="1" fill="currentColor" />
-                </svg>
-              </button>
-            </div>
-          </div>
+          )}
 
           <textarea
             ref={messageInputRef}

@@ -614,6 +614,10 @@
   overflow: hidden;
 }
 
+.gifContainer {
+  position: relative;
+}
+
 .gifPopover {
   position: absolute;
   bottom: 48px;
