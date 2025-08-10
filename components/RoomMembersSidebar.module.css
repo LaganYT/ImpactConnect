@@ -99,6 +99,34 @@
   color: var(--color-badge-admin-text);
 }
 
+.nicknameButton {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  padding: 2px 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+}
+
+.nicknameButton:hover {
+  background: var(--color-hover);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.nicknameButton.hasNickname {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.nicknameButton.hasNickname:hover {
+  background: var(--color-primary-hover);
+}
+
 .loadingContainer {
   display: flex;
   flex-direction: column;

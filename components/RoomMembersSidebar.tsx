@@ -6,6 +6,7 @@ import { ChatSession } from "@/lib/types";
 import { createClient } from "@/lib/supabase";
 import { emailToUsername } from "@/lib/usernames";
 import styles from "./RoomMembersSidebar.module.css";
+import NicknameModal from "./NicknameModal";
 
 interface RoomMembersSidebarProps {
   user: User;
@@ -37,7 +38,12 @@ export default function RoomMembersSidebar({
   selectedChat,
 }: RoomMembersSidebarProps) {
   const [members, setMembers] = useState<MemberRow[]>([]);
+  const [nicknameMap, setNicknameMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [nicknameModal, setNicknameModal] = useState<{
+    open: boolean;
+    targetUser: MemberRow | null;
+  }>({ open: false, targetUser: null });
   const supabase = createClient();
 
   const roomId = selectedChat?.type === "room" ? selectedChat.id : null;
@@ -103,6 +109,18 @@ export default function RoomMembersSidebar({
         } catch {}
 
         setMembers(rows);
+        // Fetch universal nicknames for the current user
+        try {
+          const { data: nicks } = await supabase
+            .from("user_nicknames")
+            .select("target_user_id, nickname")
+            .eq("owner_user_id", user.id);
+          const map: Record<string, string> = {};
+          (nicks || []).forEach((n: { target_user_id: string; nickname: string }) => {
+            map[n.target_user_id] = n.nickname;
+          });
+          setNicknameMap(map);
+        } catch {}
         return;
       }
 
@@ -128,6 +146,18 @@ export default function RoomMembersSidebar({
         };
       }[];
       setMembers(typed);
+      // Fetch universal nicknames for the current user
+      try {
+        const { data: nicks } = await supabase
+          .from("user_nicknames")
+          .select("target_user_id, nickname")
+          .eq("owner_user_id", user.id);
+        const map: Record<string, string> = {};
+        (nicks || []).forEach((n: { target_user_id: string; nickname: string }) => {
+          map[n.target_user_id] = n.nickname;
+        });
+        setNicknameMap(map);
+      } catch {}
     } catch (err) {
       console.error("Failed to fetch room members", err);
       setMembers([]);
@@ -151,6 +181,16 @@ export default function RoomMembersSidebar({
           fetchMembers();
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "user_nicknames",
+          filter: `owner_user_id=eq.${user.id}`,
+        },
+        () => fetchMembers(),
+      )
       .subscribe();
 
     return () => {
@@ -163,12 +203,12 @@ export default function RoomMembersSidebar({
     list.sort((a, b) => {
       // Admins first, then alphabetically by display name
       if (a.role !== b.role) return a.role === "admin" ? -1 : 1;
-      const an = getDisplayName(a, user);
-      const bn = getDisplayName(b, user);
+      const an = getDisplayNameWithNick(a, user, nicknameMap);
+      const bn = getDisplayNameWithNick(b, user, nicknameMap);
       return an.localeCompare(bn);
     });
     return list;
-  }, [members, user]);
+  }, [members, user, nicknameMap]);
 
   if (!roomId) return null;
 
@@ -215,7 +255,9 @@ export default function RoomMembersSidebar({
               </div>
               <div className={styles.memberInfo}>
                 <div className={styles.nameRow}>
-                  <span className={styles.name}>{getDisplayName(m, user)}</span>
+                  <span className={styles.name} title={getOriginalNameTooltip(m, user)}>
+                    {getDisplayNameWithNick(m, user, nicknameMap)}
+                  </span>
                   {m.user_id === user.id && (
                     <span className={styles.youBadge}>You</span>
                   )}
@@ -226,6 +268,16 @@ export default function RoomMembersSidebar({
                   >
                     {m.role}
                   </span>
+                  {m.user_id !== user.id && (
+                    <button
+                      type="button"
+                      className={`${styles.nicknameButton} ${nicknameMap[m.user_id] ? styles.hasNickname : ""}`}
+                      onClick={() => setNicknameModal({ open: true, targetUser: m })}
+                      title={nicknameMap[m.user_id] ? "Edit nickname" : "Set nickname"}
+                    >
+                      {nicknameMap[m.user_id] ? "Edit" : "Nick"}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -237,6 +289,22 @@ export default function RoomMembersSidebar({
             </div>
           )}
         </div>
+      )}
+      {nicknameModal.open && nicknameModal.targetUser && (
+        <NicknameModal
+          open={nicknameModal.open}
+          onClose={() => setNicknameModal({ open: false, targetUser: null })}
+          currentUser={user}
+          targetUser={{
+            id: nicknameModal.targetUser.user_id,
+            username: nicknameModal.targetUser.users?.username,
+            email: nicknameModal.targetUser.users?.email,
+            full_name: nicknameModal.targetUser.users?.full_name,
+            avatar_url: nicknameModal.targetUser.users?.avatar_url,
+          }}
+          currentNickname={nicknameMap[nicknameModal.targetUser.user_id]}
+          onSuccess={() => fetchMembers()}
+        />
       )}
     </aside>
   );
@@ -270,4 +338,16 @@ function getDisplayInitial(m: MemberRow, currentUser: User): string {
   const full = m.users?.full_name || null;
   const email = m.users?.email || null;
   return full?.[0] || email?.[0] || "U";
+}
+
+function getDisplayNameWithNick(m: MemberRow, currentUser: User, map: Record<string, string>): string {
+  if (m.user_id === currentUser.id) return getDisplayName(m, currentUser);
+  const nick = map[m.user_id];
+  if (nick) return nick;
+  return getDisplayName(m, currentUser);
+}
+
+function getOriginalNameTooltip(m: MemberRow, currentUser: User): string | undefined {
+  const base = getDisplayName(m, currentUser);
+  return base ? `Original: ${base}` : undefined;
 }
