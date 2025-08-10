@@ -1077,8 +1077,7 @@
   /* Improve mobile scrolling */
   .chatWindow {
     height: 100vh;
-    /* Account for mobile top bar */
-    padding-top: 100px; /* 76px (top bar position) + 24px (padding) */
+    /* No top padding needed since top bar overlays */
   }
 
   .messagesContainer {
@@ -1086,7 +1085,7 @@
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     /* Ensure proper height on mobile */
-    height: calc(100vh - 100px - 80px); /* viewport - top bar - input area */
+    height: calc(100vh - 60px - 80px); /* viewport - top bar height - input area */
     /* Better touch scrolling */
     overscroll-behavior: contain;
     /* Prevent zoom on double tap */
