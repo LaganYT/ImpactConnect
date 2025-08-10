@@ -8,7 +8,6 @@ import { emailToUsername } from "@/lib/usernames";
 import styles from "./RoomMembersSidebar.module.css";
 import NicknameModal from "./NicknameModal";
 import AdminContextMenu from "./AdminContextMenu";
-import BannedUsersModal from "./BannedUsersModal";
 
 interface RoomMembersSidebarProps {
   user: User;
@@ -51,7 +50,7 @@ export default function RoomMembersSidebar({
     position: { x: number; y: number };
     targetUser: MemberRow | null;
   }>({ open: false, position: { x: 0, y: 0 }, targetUser: null });
-  const [bannedUsersModal, setBannedUsersModal] = useState(false);
+
   const supabase = createClient();
 
   const roomId = selectedChat?.type === "room" ? selectedChat.id : null;
@@ -241,9 +240,7 @@ export default function RoomMembersSidebar({
     setContextMenu({ open: false, position: { x: 0, y: 0 }, targetUser: null });
   };
 
-  const openBannedUsersModal = () => {
-    setBannedUsersModal(true);
-  };
+
 
   if (!roomId) return null;
 
@@ -253,15 +250,6 @@ export default function RoomMembersSidebar({
         <h3 className={styles.title}>Members</h3>
         <div className={styles.headerActions}>
           <span className={styles.count}>{members.length}</span>
-          {currentUserRole === "admin" && (
-            <button
-              className={styles.bannedUsersButton}
-              onClick={openBannedUsersModal}
-              title="View banned users"
-            >
-              🚫
-            </button>
-          )}
         </div>
       </div>
 
@@ -368,11 +356,7 @@ export default function RoomMembersSidebar({
         onAction={fetchMembers}
       />
 
-      <BannedUsersModal
-        isOpen={bannedUsersModal}
-        onClose={() => setBannedUsersModal(false)}
-        roomId={roomId}
-      />
+
     </aside>
   );
 }

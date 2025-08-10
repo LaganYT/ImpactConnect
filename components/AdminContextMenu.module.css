@@ -68,13 +68,7 @@
   background-color: #fff5f5;
 }
 
-.banButton {
-  color: #dc3545;
-}
 
-.banButton:hover {
-  background-color: #fff5f5;
-}
 
 /* Modal styles */
 .modalOverlay {
@@ -180,14 +174,7 @@
   transition: all 0.15s ease;
 }
 
-.confirmButton.banButton {
-  background: #dc3545;
-  color: white;
-}
 
-.confirmButton.banButton:hover {
-  background: #c82333;
-}
 
 .confirmButton:disabled {
   opacity: 0.6;

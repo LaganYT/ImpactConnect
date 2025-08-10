@@ -7,7 +7,7 @@ A real-time chat application built with Next.js 15, Supabase, and modern web tec
 - 🔐 **Authentication**: Email/password and Google OAuth via Supabase Auth
 - 💬 **Direct Messages**: Private 1-on-1 conversations between users
 - 🏠 **Private Rooms**: Invite-only group chat rooms with admin controls
-- 👑 **Admin Management**: Room admins can kick and ban users
+- 👑 **Admin Management**: Room admins can kick users
 - ⚡ **Real-time Messaging**: Instant message delivery using Supabase Realtime
 - 📱 **Responsive Design**: Works seamlessly on desktop and mobile
 - 🎨 **Modern UI**: Clean, professional interface with smooth animations
@@ -124,8 +124,7 @@ ImpactConnect/
 - Invite-only access
 - Admin/member roles
 - Invite code generation
-- Admin controls (kick/ban users)
-- Banned users management
+- Admin controls (kick users)
 
 ### Security
 

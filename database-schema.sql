@@ -518,14 +518,6 @@ begin
     raise exception 'Invalid invite code';
   end if;
 
-  -- Check if user is banned from this room
-  if exists (
-    select 1 from public.banned_users
-    where room_id = rid and user_id = auth.uid()
-  ) then
-    raise exception 'You are banned from this room';
-  end if;
-
   insert into public.room_members (room_id, user_id, role)
   values (rid, auth.uid(), 'member')
   on conflict (room_id, user_id) do nothing;
@@ -582,61 +574,7 @@ begin
 end;
 $$;
 
--- Banned users table
-create table if not exists public.banned_users (
-  id uuid not null default gen_random_uuid(),
-  room_id uuid not null references public.rooms (id) on delete cascade,
-  user_id uuid not null references public.users (id) on delete cascade,
-  banned_by uuid not null references public.users (id) on delete cascade,
-  banned_at timestamp with time zone not null default now(),
-  reason text null,
-  constraint banned_users_pkey primary key (id),
-  constraint banned_users_room_user_unique unique (room_id, user_id)
-);
 
-create index if not exists idx_banned_users_room on public.banned_users using btree (room_id);
-create index if not exists idx_banned_users_user on public.banned_users using btree (user_id);
-
--- Enable RLS for banned_users
-alter table public.banned_users enable row level security;
-
--- RLS policies for banned_users
--- Room admins can view bans in their rooms
-create policy "Room admins can view bans in their rooms" on public.banned_users
-  for select using (
-    exists (
-      select 1 from public.room_members rm
-      where rm.room_id = banned_users.room_id 
-      and rm.user_id = auth.uid() 
-      and rm.role = 'admin'
-    )
-  );
-
--- Room admins can ban users
-create policy "Room admins can ban users" on public.banned_users
-  for insert with check (
-    exists (
-      select 1 from public.room_members rm
-      where rm.room_id = banned_users.room_id 
-      and rm.user_id = auth.uid() 
-      and rm.role = 'admin'
-    )
-    and banned_by = auth.uid()
-  );
-
--- Room admins can unban users
-create policy "Room admins can unban users" on public.banned_users
-  for delete using (
-    exists (
-      select 1 from public.room_members rm
-      where rm.room_id = banned_users.room_id 
-      and rm.user_id = auth.uid() 
-      and rm.role = 'admin'
-    )
-  );
-
--- Enable realtime for banned_users
-alter publication supabase_realtime add table public.banned_users;
 
 -- Function to kick a user from a room
 create or replace function public.kick_user_from_room(
@@ -674,90 +612,3 @@ begin
 end;
 $$;
 
--- Function to ban a user from a room
-create or replace function public.ban_user_from_room(
-  p_room_id uuid,
-  p_user_id uuid,
-  p_reason text default null
-)
-returns void
-language plpgsql
-security definer
-as $$
-begin
-  -- Check if caller is admin
-  if not exists (
-    select 1 from public.room_members rm
-    where rm.room_id = p_room_id 
-    and rm.user_id = auth.uid() 
-    and rm.role = 'admin'
-  ) then
-    raise exception 'Only room admins can ban users';
-  end if;
-
-  -- Check if target user is not an admin (admins can't ban other admins)
-  if exists (
-    select 1 from public.room_members rm
-    where rm.room_id = p_room_id 
-    and rm.user_id = p_user_id 
-    and rm.role = 'admin'
-  ) then
-    raise exception 'Cannot ban other admins';
-  end if;
-
-  -- Remove user from room first
-  delete from public.room_members
-  where room_id = p_room_id and user_id = p_user_id;
-
-  -- Add to banned users
-  insert into public.banned_users (room_id, user_id, banned_by, reason)
-  values (p_room_id, p_user_id, auth.uid(), p_reason)
-  on conflict (room_id, user_id) do update set
-    banned_by = auth.uid(),
-    banned_at = now(),
-    reason = coalesce(p_reason, banned_users.reason);
-end;
-$$;
-
--- Function to unban a user from a room
-create or replace function public.unban_user_from_room(
-  p_room_id uuid,
-  p_user_id uuid
-)
-returns void
-language plpgsql
-security definer
-as $$
-begin
-  -- Check if caller is admin
-  if not exists (
-    select 1 from public.room_members rm
-    where rm.room_id = p_room_id 
-    and rm.user_id = auth.uid() 
-    and rm.role = 'admin'
-  ) then
-    raise exception 'Only room admins can unban users';
-  end if;
-
-  -- Remove from banned users
-  delete from public.banned_users
-  where room_id = p_room_id and user_id = p_user_id;
-end;
-$$;
-
--- Function to check if a user is banned from a room
-create or replace function public.is_user_banned_from_room(
-  p_room_id uuid,
-  p_user_id uuid
-)
-returns boolean
-language plpgsql
-security definer
-as $$
-begin
-  return exists (
-    select 1 from public.banned_users
-    where room_id = p_room_id and user_id = p_user_id
-  );
-end;
-$$;

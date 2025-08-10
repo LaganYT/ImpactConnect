@@ -29,8 +29,6 @@ export default function AdminContextMenu({
   onClose,
   onAction,
 }: AdminContextMenuProps) {
-  const [showBanModal, setShowBanModal] = useState(false);
-  const [banReason, setBanReason] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
@@ -70,30 +68,7 @@ export default function AdminContextMenu({
     }
   };
 
-  const handleBan = async () => {
-    if (!targetUser) return;
-    
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.rpc("ban_user_from_room", {
-        p_room_id: roomId,
-        p_user_id: targetUser.user_id,
-        p_reason: banReason || null,
-      });
 
-      if (error) throw error;
-      
-      onAction();
-      onClose();
-      setShowBanModal(false);
-      setBanReason("");
-    } catch (error) {
-      console.error("Failed to ban user:", error);
-      alert("Failed to ban user. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const getDisplayName = () => {
     if (!targetUser?.users) return targetUser?.user_id.slice(0, 8) || "Unknown";
@@ -126,73 +101,10 @@ export default function AdminContextMenu({
             <span className={styles.icon}>👢</span>
             Kick User
           </button>
-          
-          <button
-            className={`${styles.menuItem} ${styles.banButton}`}
-            onClick={() => setShowBanModal(true)}
-            disabled={isLoading}
-          >
-            <span className={styles.icon}>🚫</span>
-            Ban User
-          </button>
         </div>
       </div>
 
-      {showBanModal && (
-        <div 
-          className={styles.modalOverlay}
-          onClick={(e) => {
-            // Close modal when clicking overlay
-            if (e.target === e.currentTarget) {
-              setShowBanModal(false);
-              setBanReason("");
-            }
-          }}
-        >
-          <div 
-            className={styles.modal}
-            onClick={(e) => {
-              // Prevent clicks inside modal from closing it
-              e.stopPropagation();
-            }}
-          >
-            <h3>Ban {getDisplayName()}</h3>
-            <p>This user will be removed from the room and prevented from rejoining.</p>
-            
-            <div className={styles.inputGroup}>
-              <label htmlFor="banReason">Reason (optional):</label>
-              <textarea
-                id="banReason"
-                value={banReason}
-                onChange={(e) => setBanReason(e.target.value)}
-                placeholder="Enter a reason for the ban..."
-                rows={3}
-                className={styles.textarea}
-              />
-            </div>
-            
-            <div className={styles.modalActions}>
-              <button
-                className={styles.cancelButton}
-                onClick={() => {
-                  setShowBanModal(false);
-                  setBanReason("");
-                }}
-                disabled={isLoading}
-              >
-                Cancel
-              </button>
-              <button
-                className={`${styles.confirmButton} ${styles.banButton}`}
-                onClick={handleBan}
-                disabled={isLoading}
-              >
-                {isLoading ? "Banning..." : "Ban User"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </>
   );
 }

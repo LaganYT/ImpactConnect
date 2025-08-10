@@ -21,11 +21,7 @@ export default async function AcceptInvitePage({
     await supabase.rpc("accept_invite_by_code", { p_invite_code: code });
     redirect("/chat");
   } catch (error: unknown) {
-    // Handle ban error specifically
-    if (error instanceof Error && error.message?.includes("banned")) {
-      redirect("/chat?error=banned");
-    }
-    // For other errors, just redirect to chat
+    // For any errors, just redirect to chat
     redirect("/chat");
   }
 }
