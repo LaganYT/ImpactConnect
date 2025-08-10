@@ -108,7 +108,10 @@ export default function ChatWindow({
     (process.env.NEXT_PUBLIC_GIPHY_KEY as string | undefined) || undefined;
   const [gifProvider, setGifProvider] = useState<GifProvider>(null);
   const [showCreatePoll, setShowCreatePoll] = useState(false);
-  
+  // Mobile menu state
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
+
   function PollCreator({
     userId,
     chat,
@@ -343,6 +346,30 @@ export default function ChatWindow({
       document.removeEventListener("keydown", onKey);
     };
   }, [showGifPicker]);
+
+  // Close mobile menu when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!showMobileMenu) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (
+        mobileMenuRef.current &&
+        target &&
+        !mobileMenuRef.current.contains(target)
+      ) {
+        setShowMobileMenu(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowMobileMenu(false);
+    };
+    document.addEventListener("click", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("click", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [showMobileMenu]);
 
   // Pick default GIF provider based on available keys
   useEffect(() => {
@@ -1321,6 +1348,81 @@ export default function ChatWindow({
 
   return (
     <div className={styles.chatWindow}>
+      {/* Mobile Top Navbar */}
+      <div className={styles.mobileTopNav}>
+        <div className={styles.mobileChatInfo}>
+          <h2 className={styles.mobileChatName}>{selectedChat.name}</h2>
+          <p className={styles.mobileChatType}>
+            {selectedChat.type === "dm" ? "Direct Message" : "Room"}
+          </p>
+        </div>
+        <div className={styles.mobileTopActions}>
+          {selectedChat.type === "room" && (
+            <button
+              className={styles.mobileInviteButton}
+              onClick={async () => {
+                if (!selectedChat.inviteCode) return;
+                const url = `${window.location.origin}/invite/${selectedChat.inviteCode}`;
+                try {
+                  await navigator.clipboard.writeText(url);
+                  toast.success("Invite link copied to clipboard");
+                } catch {
+                  setShowInviteInput(true);
+                }
+              }}
+            >
+              Invite
+            </button>
+          )}
+          <button
+            className={styles.mobileMenuButton}
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            aria-label="More options"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {showMobileMenu && (
+        <div className={styles.mobileMenu} ref={mobileMenuRef}>
+          <div className={styles.mobileMenuItem} onClick={() => {
+            setShowEmojiPicker(true);
+            setShowMobileMenu(false);
+          }}>
+            <span className={styles.mobileMenuIcon}>😊</span>
+            <span>Emoji</span>
+          </div>
+          {gifProvider && (
+            <div className={styles.mobileMenuItem} onClick={() => {
+              setShowGifPicker(true);
+              setShowMobileMenu(false);
+            }}>
+              <span className={styles.mobileMenuIcon}>GIF</span>
+              <span>GIF</span>
+            </div>
+          )}
+          <div className={styles.mobileMenuItem} onClick={() => {
+            setShowCreatePoll(true);
+            setShowMobileMenu(false);
+          }}>
+            <span className={styles.mobileMenuIcon}>📊</span>
+            <span>Create Poll</span>
+          </div>
+          <div className={styles.mobileMenuItem} onClick={() => {
+            fileInputRef.current?.click();
+            setShowMobileMenu(false);
+          }}>
+            <span className={styles.mobileMenuIcon}>📎</span>
+            <span>Attach File</span>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Header */}
       <div className={styles.header}>
         <div className={styles.chatInfo}>
           <h2 className={styles.chatName}>{selectedChat.name}</h2>
@@ -1834,173 +1936,226 @@ export default function ChatWindow({
             style={{ display: "none" }}
             onChange={handleUploadFile}
           />
+          
+          {/* Mobile Menu Button */}
           <button
             type="button"
-            className={styles.sendButton}
-            title="Upload file"
-            aria-label="Upload file"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingFile}
+            className={styles.mobileInputMenuButton}
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            aria-label="More options"
           >
-            {uploadingFile ? (
-              <div className={styles.sendingSpinner}></div>
-            ) : (
-              <svg className={styles.sendIcon} viewBox="0 0 24 24">
-                <path
-                  d="M19 13v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                />
-                <path
-                  d="M16 6l-4-4-4 4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                />
-                <path
-                  d="M12 2v14"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                />
-              </svg>
-            )}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+            </svg>
           </button>
-          <div className={styles.emojiContainer} ref={gifContainerRef}>
-            <button
-              type="button"
-              className={styles.emojiButton}
-              title="Insert GIF"
-              aria-label="Insert GIF"
-              onClick={async () => {
-                setShowGifPicker((prev) => !prev);
-                setShowEmojiPicker(false);
-                if (!showGifPicker) {
-                  // Initial load
-                  await fetchTrendingGifs();
-                }
-              }}
-              disabled={!gifProvider}
-            >
-              <span className={styles.gifLabel}>GIF</span>
-            </button>
-            {showGifPicker && (
-              <div
-                className={styles.gifPopover}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {!gifProvider ? (
-                  <div className={styles.gifEmpty}>
-                    <p>
-                      Configure <code>NEXT_PUBLIC_TENOR_KEY</code> or{" "}
-                      <code>NEXT_PUBLIC_GIPHY_KEY</code> to enable GIF search.
-                    </p>
-                  </div>
-                ) : (
-                  <div className={styles.gifPanel}>
-                    <div className={styles.gifSearchRow}>
-                      <input
-                        className={styles.gifSearchInput}
-                        value={gifQuery}
-                        onChange={(e) => setGifQuery(e.target.value)}
-                        onKeyDown={async (e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            await searchGifs(gifQuery);
-                          }
-                        }}
-                        placeholder={`Search ${gifProvider === "tenor" ? "Tenor" : "Giphy"} GIFs...`}
-                      />
-                      <button
-                        type="button"
-                        className={styles.gifSearchButton}
-                        onClick={() => searchGifs(gifQuery)}
-                        disabled={gifLoading}
-                      >
-                        {gifLoading ? "..." : "Search"}
-                      </button>
-                    </div>
-                    <div className={styles.gifGrid}>
-                      {gifLoading ? (
-                        <div className={styles.gifLoading}>Loading...</div>
-                      ) : (
-                        gifResults.map((g) => (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            key={g.id}
-                            src={g.preview}
-                            alt="GIF"
-                            className={styles.gifItem}
-                            onClick={async () => {
-                              try {
-                                await onSendMessage(g.url);
-                                setShowGifPicker(false);
-                                setGifQuery("");
-                              } catch (e) {
-                                console.error("Failed to send GIF", e);
-                              }
-                            }}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
+
+          {/* Mobile Input Menu */}
+          {showMobileMenu && (
+            <div className={styles.mobileInputMenu} ref={mobileMenuRef}>
+              <div className={styles.mobileInputMenuItem} onClick={() => {
+                fileInputRef.current?.click();
+                setShowMobileMenu(false);
+              }}>
+                <span className={styles.mobileInputMenuIcon}>📎</span>
+                <span>Attach File</span>
               </div>
-            )}
-          </div>
-          <div className={styles.emojiContainer} ref={emojiContainerRef}>
+              <div className={styles.mobileInputMenuItem} onClick={() => {
+                setShowEmojiPicker(true);
+                setShowMobileMenu(false);
+              }}>
+                <span className={styles.mobileInputMenuIcon}>😊</span>
+                <span>Emoji</span>
+              </div>
+              {gifProvider && (
+                <div className={styles.mobileInputMenuItem} onClick={() => {
+                  setShowGifPicker(true);
+                  setShowMobileMenu(false);
+                }}>
+                  <span className={styles.mobileInputMenuIcon}>GIF</span>
+                  <span>GIF</span>
+                </div>
+              )}
+              <div className={styles.mobileInputMenuItem} onClick={() => {
+                setShowCreatePoll(true);
+                setShowMobileMenu(false);
+              }}>
+                <span className={styles.mobileInputMenuIcon}>📊</span>
+                <span>Create Poll</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Desktop Controls */}
+          <div className={styles.desktopControls}>
             <button
               type="button"
-              className={styles.emojiButton}
-              title="Insert emoji"
-              aria-label="Insert emoji"
-              onClick={() => setShowEmojiPicker((prev) => !prev)}
+              className={styles.sendButton}
+              title="Upload file"
+              aria-label="Upload file"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingFile}
             >
-              <span role="img" aria-label="emoji">
-                😊
-              </span>
-            </button>
-            {showEmojiPicker && (
-              <div
-                className={styles.emojiPopover}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* width/height to keep picker compact; theme follows app theme */}
-                {typeof window !== "undefined" && (
-                  <EmojiPicker
-                    onEmojiClick={(emojiData) => {
-                      insertEmojiAtCaret(emojiData.emoji);
-                    }}
-                    width={320}
-                    height={420}
-                    theme={
-                      document.documentElement.getAttribute("data-theme") ===
-                      "dark"
-                        ? "dark"
-                        : "light"
-                    }
+              {uploadingFile ? (
+                <div className={styles.sendingSpinner}></div>
+              ) : (
+                <svg className={styles.sendIcon} viewBox="0 0 24 24">
+                  <path
+                    d="M19 13v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
                   />
-                )}
-              </div>
-            )}
-          </div>
-          <div className={styles.emojiContainer}>
-            <button
-              type="button"
-              className={styles.emojiButton}
-              title="Create poll"
-              aria-label="Create poll"
-              onClick={() => setShowCreatePoll(true)}
-            >
-              <svg className={styles.sendIcon} viewBox="0 0 24 24" aria-hidden>
-                <rect x="4" y="10" width="3" height="8" rx="1" fill="currentColor" />
-                <rect x="10.5" y="6" width="3" height="12" rx="1" fill="currentColor" />
-                <rect x="17" y="3" width="3" height="15" rx="1" fill="currentColor" />
-              </svg>
+                  <path
+                    d="M16 6l-4-4-4 4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
+                  <path
+                    d="M12 2v14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
+                </svg>
+              )}
             </button>
+            <div className={styles.emojiContainer} ref={gifContainerRef}>
+              <button
+                type="button"
+                className={styles.emojiButton}
+                title="Insert GIF"
+                aria-label="Insert GIF"
+                onClick={async () => {
+                  setShowGifPicker((prev) => !prev);
+                  setShowEmojiPicker(false);
+                  if (!showGifPicker) {
+                    // Initial load
+                    await fetchTrendingGifs();
+                  }
+                }}
+                disabled={!gifProvider}
+              >
+                <span className={styles.gifLabel}>GIF</span>
+              </button>
+              {showGifPicker && (
+                <div
+                  className={styles.gifPopover}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {!gifProvider ? (
+                    <div className={styles.gifEmpty}>
+                      <p>
+                        Configure <code>NEXT_PUBLIC_TENOR_KEY</code> or{" "}
+                        <code>NEXT_PUBLIC_GIPHY_KEY</code> to enable GIF search.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className={styles.gifPanel}>
+                      <div className={styles.gifSearchRow}>
+                        <input
+                          className={styles.gifSearchInput}
+                          value={gifQuery}
+                          onChange={(e) => setGifQuery(e.target.value)}
+                          onKeyDown={async (e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              await searchGifs(gifQuery);
+                            }
+                          }}
+                          placeholder={`Search ${gifProvider === "tenor" ? "Tenor" : "Giphy"} GIFs...`}
+                        />
+                        <button
+                          type="button"
+                          className={styles.gifSearchButton}
+                          onClick={() => searchGifs(gifQuery)}
+                          disabled={gifLoading}
+                        >
+                          {gifLoading ? "..." : "Search"}
+                        </button>
+                      </div>
+                      <div className={styles.gifGrid}>
+                        {gifLoading ? (
+                          <div className={styles.gifLoading}>Loading...</div>
+                        ) : (
+                          gifResults.map((g) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              key={g.id}
+                              src={g.preview}
+                              alt="GIF"
+                              className={styles.gifItem}
+                              onClick={async () => {
+                                try {
+                                  await onSendMessage(g.url);
+                                  setShowGifPicker(false);
+                                  setGifQuery("");
+                                } catch (e) {
+                                  console.error("Failed to send GIF", e);
+                                }
+                              }}
+                            />
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className={styles.emojiContainer} ref={emojiContainerRef}>
+              <button
+                type="button"
+                className={styles.emojiButton}
+                title="Insert emoji"
+                aria-label="Insert emoji"
+                onClick={() => setShowEmojiPicker((prev) => !prev)}
+              >
+                <span role="img" aria-label="emoji">
+                  😊
+                </span>
+              </button>
+              {showEmojiPicker && (
+                <div
+                  className={styles.emojiPopover}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* width/height to keep picker compact; theme follows app theme */}
+                  {typeof window !== "undefined" && (
+                    <EmojiPicker
+                      onEmojiClick={(emojiData) => {
+                        insertEmojiAtCaret(emojiData.emoji);
+                      }}
+                      width={320}
+                      height={420}
+                      theme={
+                        document.documentElement.getAttribute("data-theme") ===
+                        "dark"
+                          ? "dark"
+                          : "light"
+                      }
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+            <div className={styles.emojiContainer}>
+              <button
+                type="button"
+                className={styles.emojiButton}
+                title="Create poll"
+                aria-label="Create poll"
+                onClick={() => setShowCreatePoll(true)}
+              >
+                <svg className={styles.sendIcon} viewBox="0 0 24 24" aria-hidden>
+                  <rect x="4" y="10" width="3" height="8" rx="1" fill="currentColor" />
+                  <rect x="10.5" y="6" width="3" height="12" rx="1" fill="currentColor" />
+                  <rect x="17" y="3" width="3" height="15" rx="1" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
           </div>
+
           <textarea
             ref={messageInputRef}
             rows={1}

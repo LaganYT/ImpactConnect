@@ -35,6 +35,119 @@
   font-size: 14px;
 }
 
+/* Mobile Top Navbar */
+.mobileTopNav {
+  display: none;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobileChatInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobileChatName {
+  margin: 0 0 2px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobileChatType {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted-text);
+}
+
+.mobileTopActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mobileInviteButton {
+  padding: 6px 10px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.mobileInviteButton:hover {
+  background: #5a6fd8;
+}
+
+.mobileMenuButton {
+  background: none;
+  border: none;
+  color: var(--color-text);
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobileMenuButton:hover {
+  background: var(--color-hover);
+}
+
+/* Mobile Menu */
+.mobileMenu {
+  position: absolute;
+  top: 100%;
+  right: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 160px;
+  overflow: hidden;
+}
+
+.mobileMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.mobileMenuItem:hover {
+  background: var(--color-hover);
+}
+
+.mobileMenuIcon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 .header {
   padding: 16px;
   border-bottom: 1px solid var(--color-border);
@@ -97,6 +210,77 @@
   background: var(--color-surface-2);
   position: relative;
   min-height: 0;
+  /* Ensure proper scrolling on mobile */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Mobile Input Menu Button */
+.mobileInputMenuButton {
+  display: none;
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  /* Touch-friendly sizing */
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.mobileInputMenuButton:hover {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+}
+
+/* Mobile Input Menu */
+.mobileInputMenu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 160px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.mobileInputMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  color: var(--color-text);
+  font-size: 14px;
+  /* Touch-friendly sizing */
+  min-height: 44px;
+}
+
+.mobileInputMenuItem:hover {
+  background: var(--color-hover);
+}
+
+.mobileInputMenuIcon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
 }
 
 .loadingMessages {
@@ -133,6 +317,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* Ensure proper scrolling on mobile */
+  min-height: 0;
 }
 
 .message {
@@ -337,6 +523,7 @@
   border-top: 1px solid var(--color-border);
   background: var(--color-surface);
   flex-shrink: 0;
+  position: relative;
 }
 
 .typingIndicator {
@@ -376,6 +563,13 @@
 .inputContainer {
   display: flex;
   gap: 8px;
+  align-items: flex-end;
+  position: relative;
+}
+
+.desktopControls {
+  display: flex;
+  gap: 6px;
   align-items: flex-end;
 }
 
@@ -838,6 +1032,18 @@
 
 /* Mobile styles (default) */
 @media (max-width: 767px) {
+  .mobileTopNav {
+    display: flex;
+  }
+
+  .header {
+    display: none;
+  }
+
+  .mobileInputMenuButton {
+    display: flex;
+  }
+
   .emptyState {
     padding: 16px;
   }
@@ -852,23 +1058,6 @@
 
   .emptyState p {
     font-size: 13px;
-  }
-
-  .header {
-    padding: 12px 16px;
-  }
-
-  .chatName {
-    font-size: 15px;
-  }
-
-  .chatType {
-    font-size: 11px;
-  }
-
-  .inviteButton {
-    padding: 6px 10px;
-    font-size: 11px;
   }
 
   .messages {
@@ -920,19 +1109,8 @@
     gap: 6px;
   }
 
-  .emojiButton {
-    width: 32px;
-    height: 32px;
-  }
-
-  .sendButton {
-    width: 32px;
-    height: 32px;
-  }
-
-  .sendIcon {
-    width: 16px;
-    height: 16px;
+  .desktopControls {
+    display: none;
   }
 
   .messageInput {
@@ -1016,8 +1194,17 @@
 
 /* Tablet styles */
 @media (min-width: 768px) and (max-width: 1023px) {
+  .mobileTopNav {
+    display: none;
+  }
+
   .header {
+    display: flex;
     padding: 16px 20px;
+  }
+
+  .mobileInputMenuButton {
+    display: none;
   }
 
   .chatName {
@@ -1045,6 +1232,10 @@
     gap: 10px;
   }
 
+  .desktopControls {
+    display: flex;
+  }
+
   .gifPopover {
     width: 350px;
     max-height: 380px;
@@ -1064,8 +1255,17 @@
 
 /* Desktop styles */
 @media (min-width: 1024px) {
+  .mobileTopNav {
+    display: none;
+  }
+
   .header {
+    display: flex;
     padding: 20px;
+  }
+
+  .mobileInputMenuButton {
+    display: none;
   }
 
   .chatName {
@@ -1091,6 +1291,10 @@
 
   .inputContainer {
     gap: 12px;
+  }
+
+  .desktopControls {
+    display: flex;
   }
 
   .gifPopover {
