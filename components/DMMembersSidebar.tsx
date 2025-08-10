@@ -222,6 +222,7 @@ export default function DMMembersSidebar({
             avatar_url: nicknameModal.targetUser.users?.avatar_url,
           }}
           currentNickname={nicknameMap[nicknameModal.targetUser.user_id]}
+          onSuccess={() => fetchParticipants()}
         />
       )}
     </aside>

@@ -18,6 +18,7 @@ interface NicknameModalProps {
     avatar_url?: string | null;
   };
   currentNickname?: string;
+  onSuccess?: () => void;
 }
 
 export default function NicknameModal({
@@ -26,6 +27,7 @@ export default function NicknameModal({
   currentUser,
   targetUser,
   currentNickname,
+  onSuccess,
 }: NicknameModalProps) {
   const [nickname, setNickname] = useState("");
   const [saving, setSaving] = useState(false);
@@ -78,6 +80,7 @@ export default function NicknameModal({
             },
           );
       }
+      onSuccess?.();
       onClose();
     } catch (e) {
       console.error("Failed to set nickname", e);
@@ -96,6 +99,7 @@ export default function NicknameModal({
         .delete()
         .eq("owner_user_id", currentUser.id)
         .eq("target_user_id", targetUser.id);
+      onSuccess?.();
       onClose();
     } catch (e) {
       console.error("Failed to remove nickname", e);

@@ -303,6 +303,7 @@ export default function RoomMembersSidebar({
             avatar_url: nicknameModal.targetUser.users?.avatar_url,
           }}
           currentNickname={nicknameMap[nicknameModal.targetUser.user_id]}
+          onSuccess={() => fetchMembers()}
         />
       )}
     </aside>
