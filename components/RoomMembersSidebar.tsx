@@ -295,7 +295,13 @@ export default function RoomMembersSidebar({
           open={nicknameModal.open}
           onClose={() => setNicknameModal({ open: false, targetUser: null })}
           currentUser={user}
-          targetUser={nicknameModal.targetUser}
+          targetUser={{
+            id: nicknameModal.targetUser.user_id,
+            username: nicknameModal.targetUser.users?.username,
+            email: nicknameModal.targetUser.users?.email,
+            full_name: nicknameModal.targetUser.users?.full_name,
+            avatar_url: nicknameModal.targetUser.users?.avatar_url,
+          }}
           currentNickname={nicknameMap[nicknameModal.targetUser.user_id]}
         />
       )}

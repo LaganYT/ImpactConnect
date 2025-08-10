@@ -5,7 +5,6 @@ import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase";
 import { emailToUsername } from "@/lib/usernames";
 import Modal from "./Modal";
-import styles from "./Modal.module.css";
 
 interface NicknameModalProps {
   open: boolean;
