@@ -463,58 +463,16 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
                 <p className={styles.mobileMenuUserEmail}>{user.email}</p>
               </div>
             </div>
-            <div className={styles.mobileMenuActions}>
-              <button
-                type="button"
-                onClick={() => {
-                  // This will be handled by the Sidebar component
-                  setShowMobileMenu(false);
-                }}
-                className={styles.mobileMenuButton}
-                title="Settings"
-                aria-label="Settings"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path d="M19.14,12.94a7.43,7.43,0,0,0,.05-.94,7.43,7.43,0,0,0-.05-.94l2.11-1.65a.5.5,0,0,0,.12-.64l-2-3.46a.5.5,0,0,0-.6-.22l-2.49,1a7.28,7.28,0,0,0-1.63-.94l-.38-2.65A.5.5,0,0,0,13.66,1H10.34a.5.5,0,0,0-.49.41L9.47,4.06a7.28,7.28,0,0,0-1.63.94l-2.49-1a.5.5,0,0,0-.6.22l-2,3.46a.5.5,0,0,0,.12.64L4.86,11.06a7.43,7.43,0,0,0-.05.94,7.43,7.43,0,0,0,.05.94L2.75,14.59a.5.5,0,0,0-.12.64l2,3.46a.5.5,0,0,0,.6.22l2.49-1a7.28,7.28,0,0,0,1.63.94l.38,2.65a.5.5,0,0,0,.49.41h3.32a.5.5,0,0,0,.49-.41l.38-2.65a7.28,7.28,0,0,0,1.63-.94l2.49,1a.5.5,0,0,0,.6-.22l2-3.46a.5.5,0,0,0-.12-.64ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z" />
-                </svg>
-              </button>
-              <button
-                onClick={() => {
-                  onLogout();
-                  setShowMobileMenu(false);
-                }}
-                className={styles.mobileMenuButton}
-                title="Logout"
-                aria-label="Logout"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path d="M10 17l1.41-1.41L8.83 13H21v-2H8.83l2.58-2.59L10 7l-5 5 5 5z" />
-                  <path d="M3 19h6v2H1V3h8v2H3z" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setShowMobileMenu(false)}
-                className={styles.mobileMenuCloseButton}
-                title="Close menu"
-                aria-label="Close menu"
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                </svg>
-              </button>
-            </div>
+            <button
+              onClick={() => setShowMobileMenu(false)}
+              className={styles.mobileMenuCloseButton}
+              title="Close menu"
+              aria-label="Close menu"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+              </svg>
+            </button>
           </div>
 
           <div className={styles.mobileMenuContent}>
@@ -619,6 +577,51 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
                     ))}
                 </div>
               </div>
+            </div>
+
+            <div className={styles.mobileMenuFooter}>
+              <button
+                type="button"
+                onClick={() => {
+                  // This will be handled by the Sidebar component
+                  setShowMobileMenu(false);
+                }}
+                className={styles.mobileMenuFooterButton}
+                title="Settings"
+                aria-label="Settings"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M19.14,12.94a7.43,7.43,0,0,0,.05-.94,7.43,7.43,0,0,0-.05-.94l2.11-1.65a.5.5,0,0,0,.12-.64l-2-3.46a.5.5,0,0,0-.6-.22l-2.49,1a7.28,7.28,0,0,0-1.63-.94l-.38-2.65A.5.5,0,0,0,13.66,1H10.34a.5.5,0,0,0-.49.41L9.47,4.06a7.28,7.28,0,0,0-1.63.94l-2.49-1a.5.5,0,0,0-.6.22l-2,3.46a.5.5,0,0,0,.12.64L4.86,11.06a7.43,7.43,0,0,0-.05.94,7.43,7.43,0,0,0,.05.94L2.75,14.59a.5.5,0,0,0-.12.64l2,3.46a.5.5,0,0,0,.6.22l2.49-1a7.28,7.28,0,0,0,1.63.94l.38,2.65a.5.5,0,0,0,.49.41h3.32a.5.5,0,0,0,.49-.41l.38-2.65a7.28,7.28,0,0,0,1.63-.94l2.49,1a.5.5,0,0,0,.6-.22l2-3.46a.5.5,0,0,0-.12-.64ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z" />
+                </svg>
+                Settings
+              </button>
+              <button
+                onClick={() => {
+                  onLogout();
+                  setShowMobileMenu(false);
+                }}
+                className={styles.mobileMenuFooterButton}
+                title="Logout"
+                aria-label="Logout"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M10 17l1.41-1.41L8.83 13H21v-2H8.83l2.58-2.59L10 7l-5 5 5 5z" />
+                  <path d="M3 19h6v2H1V3h8v2H3z" />
+                </svg>
+                Logout
+              </button>
             </div>
           </div>
         </div>
