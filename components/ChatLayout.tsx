@@ -26,6 +26,12 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [showNewRoom, setShowNewRoom] = useState(false);
+  const [newChatUsername, setNewChatUsername] = useState("");
+  const [newRoomName, setNewRoomName] = useState("");
+  const [newRoomDescription, setNewRoomDescription] = useState("");
+  const [loadingAction, setLoadingAction] = useState(false);
   const supabase = createClient();
   const toast = useToastContext();
 
@@ -407,6 +413,112 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
     window.location.href = "/auth/login";
   };
 
+  const handleNewDM = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoadingAction(true);
+
+    try {
+      // Normalize username input (ensure it starts with @)
+      const username = newChatUsername.trim().startsWith("@")
+        ? newChatUsername.trim()
+        : `@${newChatUsername.trim()}`;
+
+      // Resolve user id by username via RPC (bypasses RLS)
+      const { data: resolvedUserId, error: resolveError } = await supabase.rpc(
+        "resolve_user_by_username",
+        { p_username: username },
+      );
+
+      if (resolveError || !resolvedUserId) {
+        toast.error("User not found");
+        return;
+      }
+
+      if (resolvedUserId === user.id) {
+        toast.error("You cannot create a DM with yourself");
+        return;
+      }
+
+      // Check if DM already exists
+      const { data: existingDM } = await supabase
+        .from("direct_messages")
+        .select("id")
+        .or(
+          `and(user1_id.eq.${user.id},user2_id.eq.${resolvedUserId}),and(user1_id.eq.${resolvedUserId},user2_id.eq.${user.id})`,
+        )
+        .single();
+
+      if (existingDM) {
+        toast.error("Direct message already exists");
+        return;
+      }
+
+      // Create new DM
+      const { error: dmError } = await supabase
+        .from("direct_messages")
+        .insert({
+          user1_id: user.id,
+          user2_id: resolvedUserId,
+        })
+        .select()
+        .single();
+
+      if (dmError) {
+        console.error("Error creating DM:", dmError);
+        toast.error("Failed to create direct message");
+        return;
+      }
+
+      toast.success("Direct message created successfully");
+      setNewChatUsername("");
+      setShowNewChat(false);
+      setShowMobileMenu(false);
+      // Refresh chat sessions
+      await fetchChatSessions();
+    } catch (error) {
+      console.error("Error creating DM:", error);
+      toast.error("Failed to create direct message");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  const handleNewRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoadingAction(true);
+
+    try {
+      const { error: roomError } = await supabase
+        .from("rooms")
+        .insert({
+          name: newRoomName.trim(),
+          description: newRoomDescription.trim() || null,
+          owner_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (roomError) {
+        console.error("Error creating room:", roomError);
+        toast.error("Failed to create room");
+        return;
+      }
+
+      toast.success("Room created successfully");
+      setNewRoomName("");
+      setNewRoomDescription("");
+      setShowNewRoom(false);
+      setShowMobileMenu(false);
+      // Refresh chat sessions
+      await fetchChatSessions();
+    } catch (error) {
+      console.error("Error creating room:", error);
+      toast.error("Failed to create room");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className={styles.loadingContainer}>
@@ -478,10 +590,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
           <div className={styles.mobileMenuContent}>
             <div className={styles.mobileMenuActions}>
               <button
-                onClick={() => {
-                  // This will be handled by the Sidebar component
-                  setShowMobileMenu(false);
-                }}
+                onClick={() => setShowNewChat(true)}
                 className={styles.mobileMenuActionButton}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -490,10 +599,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
                 New DM
               </button>
               <button
-                onClick={() => {
-                  // This will be handled by the Sidebar component
-                  setShowMobileMenu(false);
-                }}
+                onClick={() => setShowNewRoom(true)}
                 className={styles.mobileMenuActionButton}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -583,7 +689,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
               <button
                 type="button"
                 onClick={() => {
-                  // This will be handled by the Sidebar component
+                  setShowSettings(true);
                   setShowMobileMenu(false);
                 }}
                 className={styles.mobileMenuFooterButton}
@@ -603,7 +709,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
               </button>
               <button
                 onClick={() => {
-                  onLogout();
+                  handleLogout();
                   setShowMobileMenu(false);
                 }}
                 className={styles.mobileMenuFooterButton}
@@ -623,6 +729,103 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
                 Logout
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* New DM Form Modal */}
+      {showNewChat && (
+        <div className={styles.mobileModalOverlay}>
+          <div className={styles.mobileModal}>
+            <div className={styles.mobileModalHeader}>
+              <h3>New Direct Message</h3>
+              <button
+                onClick={() => setShowNewChat(false)}
+                className={styles.mobileModalCloseButton}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleNewDM} className={styles.mobileModalForm}>
+              <input
+                type="text"
+                value={newChatUsername}
+                onChange={(e) => setNewChatUsername(e.target.value)}
+                placeholder="Enter username (e.g. @example)"
+                className={styles.mobileModalInput}
+                required
+              />
+              <div className={styles.mobileModalActions}>
+                <button
+                  type="submit"
+                  disabled={loadingAction}
+                  className={styles.mobileModalSubmitButton}
+                >
+                  {loadingAction ? "Creating..." : "Create DM"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowNewChat(false)}
+                  className={styles.mobileModalCancelButton}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* New Room Form Modal */}
+      {showNewRoom && (
+        <div className={styles.mobileModalOverlay}>
+          <div className={styles.mobileModal}>
+            <div className={styles.mobileModalHeader}>
+              <h3>New Room</h3>
+              <button
+                onClick={() => setShowNewRoom(false)}
+                className={styles.mobileModalCloseButton}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleNewRoom} className={styles.mobileModalForm}>
+              <input
+                type="text"
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                placeholder="Room name"
+                className={styles.mobileModalInput}
+                required
+              />
+              <textarea
+                value={newRoomDescription}
+                onChange={(e) => setNewRoomDescription(e.target.value)}
+                placeholder="Room description (optional)"
+                className={styles.mobileModalTextarea}
+                rows={3}
+              />
+              <div className={styles.mobileModalActions}>
+                <button
+                  type="submit"
+                  disabled={loadingAction}
+                  className={styles.mobileModalSubmitButton}
+                >
+                  {loadingAction ? "Creating..." : "Create Room"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowNewRoom(false)}
+                  className={styles.mobileModalCancelButton}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
