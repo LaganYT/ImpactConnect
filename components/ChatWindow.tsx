@@ -90,6 +90,25 @@ export default function ChatWindow({
   const [gifResults, setGifResults] = useState<
     Array<{ id: string; url: string; preview: string }>
   >([]);
+  
+  // Command suggestions state
+  const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
+  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+  const [filteredCommands, setFilteredCommands] = useState<Array<{ command: string; description: string; icon: string }>>([]);
+  
+  // Command definitions
+  const COMMANDS = [
+    { command: '/help', description: 'Show available commands', icon: '❓' },
+    { command: '/roll', description: 'Roll a dice (e.g., /roll 20 for d20)', icon: '🎲' },
+    { command: '/flip', description: 'Flip a coin', icon: '🪙' },
+    { command: '/8ball', description: 'Ask the magic 8-ball a question', icon: '🎱' },
+    { command: '/joke', description: 'Tell a random joke', icon: '😄' },
+    { command: '/weather', description: 'Get a random weather forecast', icon: '🌤️' },
+    { command: '/fortune', description: 'Get your fortune for today', icon: '🔮' },
+    { command: '/rps', description: 'Play rock, paper, scissors', icon: '✂️' },
+    { command: '/quote', description: 'Get an inspirational quote', icon: '💭' }
+  ];
+  
   type UrlPreview = {
     ok?: boolean;
     url: string;
@@ -626,6 +645,22 @@ export default function ChatWindow({
       window.clearTimeout(id);
     };
   }, [selectedChat]);
+
+  // Handle command suggestions
+  useEffect(() => {
+    if (newMessage.startsWith('/')) {
+      const query = newMessage.slice(1).toLowerCase();
+      const filtered = COMMANDS.filter(cmd => 
+        cmd.command.toLowerCase().includes(query) || 
+        cmd.description.toLowerCase().includes(query)
+      );
+      setFilteredCommands(filtered);
+      setShowCommandSuggestions(filtered.length > 0);
+      setSelectedCommandIndex(0);
+    } else {
+      setShowCommandSuggestions(false);
+    }
+  }, [newMessage]);
 
   const fetchMessages = async () => {
     if (!selectedChat) return;
@@ -2105,7 +2140,28 @@ export default function ChatWindow({
               startTyping();
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (showCommandSuggestions) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setSelectedCommandIndex(prev => 
+                    prev < filteredCommands.length - 1 ? prev + 1 : 0
+                  );
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setSelectedCommandIndex(prev => 
+                    prev > 0 ? prev - 1 : filteredCommands.length - 1
+                  );
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (filteredCommands[selectedCommandIndex]) {
+                    setNewMessage(filteredCommands[selectedCommandIndex].command + ' ');
+                    setShowCommandSuggestions(false);
+                  }
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  setShowCommandSuggestions(false);
+                }
+              } else if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 if (!sending && newMessage.trim()) {
                   void sendCurrentMessage();
@@ -2115,11 +2171,41 @@ export default function ChatWindow({
             onBlur={() => {
               stopTyping();
             }}
-            placeholder="Type a message..."
+            placeholder="Type a message... (try /help for commands)"
             className={styles.messageInput}
             disabled={sending}
             style={{ overflow: "hidden" }}
           />
+          
+          {/* Command Suggestions Dropdown */}
+          {showCommandSuggestions && (
+            <div className={styles.commandSuggestions}>
+              <div className={styles.commandSuggestionsHeader}>
+                <span className={styles.commandSuggestionsIcon}>🕐</span>
+                <span className={styles.commandSuggestionsTitle}>Frequently Used</span>
+              </div>
+              <div className={styles.commandSuggestionsList}>
+                {filteredCommands.map((cmd, index) => (
+                  <div
+                    key={cmd.command}
+                    className={`${styles.commandSuggestionItem} ${
+                      index === selectedCommandIndex ? styles.commandSuggestionSelected : ''
+                    }`}
+                    onClick={() => {
+                      setNewMessage(cmd.command + ' ');
+                      setShowCommandSuggestions(false);
+                    }}
+                  >
+                    <div className={styles.commandSuggestionIcon}>{cmd.icon}</div>
+                    <div className={styles.commandSuggestionContent}>
+                      <div className={styles.commandSuggestionName}>{cmd.command}</div>
+                      <div className={styles.commandSuggestionDescription}>{cmd.description}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <button
             type="submit"
             disabled={!newMessage.trim() || sending}

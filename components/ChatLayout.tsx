@@ -16,6 +16,185 @@ import styles from "./ChatLayout.module.css";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
+// Command system
+interface Command {
+  description: string;
+  handler: (args?: string[]) => string;
+}
+
+const COMMANDS: Record<string, Command> = {
+  '/help': {
+    description: 'Show available commands',
+    handler: () => {
+      const commands = Object.entries(COMMANDS)
+        .filter(([cmd]) => cmd !== '/help')
+        .map(([cmd, info]) => `${cmd} - ${info.description}`)
+        .join('\n');
+      return `**Available Commands:**\n${commands}`;
+    }
+  },
+  '/roll': {
+    description: 'Roll a dice (e.g., /roll 20 for d20)',
+    handler: (args?: string[]) => {
+      const sides = parseInt(args?.[0] || '6') || 6;
+      if (sides < 1 || sides > 1000) {
+        return 'Please specify a number between 1 and 1000';
+      }
+      const result = Math.floor(Math.random() * sides) + 1;
+      return `🎲 You rolled a **${result}** on a d${sides}!`;
+    }
+  },
+  '/flip': {
+    description: 'Flip a coin',
+    handler: () => {
+      const result = Math.random() < 0.5 ? 'heads' : 'tails';
+      const emoji = result === 'heads' ? '🪙' : '🪙';
+      return `${emoji} The coin landed on **${result}**!`;
+    }
+  },
+  '/8ball': {
+    description: 'Ask the magic 8-ball a question',
+    handler: (args?: string[]) => {
+      if (!args?.length) {
+        return 'Please ask a question! (e.g., /8ball Will I win the lottery?)';
+      }
+      const responses = [
+        'It is certain! ✨',
+        'It is decidedly so! 🎯',
+        'Without a doubt! 💫',
+        'Yes, definitely! 🌟',
+        'You may rely on it! 🔮',
+        'As I see it, yes! 👁️',
+        'Most likely! 🎲',
+        'Outlook good! 🌈',
+        'Yes! 🎉',
+        'Signs point to yes! 📈',
+        'Reply hazy, try again! 🌫️',
+        'Ask again later! ⏰',
+        'Better not tell you now! 🤐',
+        'Cannot predict now! 🔮',
+        'Concentrate and ask again! 🧘',
+        'Don\'t count on it! ❌',
+        'My reply is no! 🚫',
+        'My sources say no! 📰',
+        'Outlook not so good! 📉',
+        'Very doubtful! 🤔'
+      ];
+      const response = responses[Math.floor(Math.random() * responses.length)];
+      return `🎱 **${response}**`;
+    }
+  },
+  '/joke': {
+    description: 'Tell a random joke',
+    handler: () => {
+      const jokes = [
+        'Why don\'t scientists trust atoms? Because they make up everything! 🤓',
+        'Why did the scarecrow win an award? He was outstanding in his field! 🌾',
+        'Why don\'t eggs tell jokes? They\'d crack each other up! 🥚',
+        'Why did the math book look so sad? Because it had too many problems! 📚',
+        'What do you call a fake noodle? An impasta! 🍝',
+        'Why did the cookie go to the doctor? Because it was feeling crumbly! 🍪',
+        'What do you call a bear with no teeth? A gummy bear! 🧸',
+        'Why don\'t skeletons fight each other? They don\'t have the guts! 💀',
+        'What do you call a fish wearing a bowtie? So-fish-ticated! 🐟',
+        'Why did the golfer bring two pairs of pants? In case he got a hole in one! ⛳'
+      ];
+      const joke = jokes[Math.floor(Math.random() * jokes.length)];
+      return `😄 **${joke}**`;
+    }
+  },
+  '/weather': {
+    description: 'Get a random weather forecast',
+    handler: () => {
+      const conditions = ['sunny', 'cloudy', 'rainy', 'snowy', 'stormy', 'foggy', 'windy', 'hot', 'cold', 'perfect'];
+      const condition = conditions[Math.floor(Math.random() * conditions.length)];
+      const temp = Math.floor(Math.random() * 50) - 10; // -10 to 40°C
+      const emojis = {
+        sunny: '☀️', cloudy: '☁️', rainy: '🌧️', snowy: '❄️', stormy: '⛈️',
+        foggy: '🌫️', windy: '💨', hot: '🔥', cold: '🥶', perfect: '🌈'
+      };
+      return `${emojis[condition as keyof typeof emojis]} **Weather Forecast:** ${condition} with a temperature of ${temp}°C!`;
+    }
+  },
+  '/fortune': {
+    description: 'Get your fortune for today',
+    handler: () => {
+      const fortunes = [
+        'A beautiful, smart, and loving person will be coming into your life! 💕',
+        'A dubious friend may be an enemy in camouflage! 🕵️',
+        'A faithful friend is a strong defense! 🛡️',
+        'A fresh start will put you on your way! 🌱',
+        'A golden egg of opportunity falls into your lap this month! 🥚',
+        'A lifetime friend shall soon be made! 👥',
+        'A light heart carries you through all the hard times! 💡',
+        'A new perspective will come with the new year! 🎆',
+        'A pleasant surprise is waiting for you! 🎁',
+        'Adventure can be real happiness! 🗺️',
+        'All your hard work will soon pay off! 💰',
+        'An important person will offer you support! 🤝',
+        'Be careful or you could fall for some tricks today! 🎭',
+        'Believe in yourself and others will too! 💪',
+        'Change is happening in your life, so go with the flow! 🌊',
+        'Congratulations! You are on your way! 🎉',
+        'Do not make extra work for yourself! 📝',
+        'Don\'t just spend time. Invest it! ⏰',
+        'Don\'t just think, act! 🏃',
+        'Don\'t underestimate yourself. Human beings have unlimited potential! 🚀'
+      ];
+      const fortune = fortunes[Math.floor(Math.random() * fortunes.length)];
+      return `🔮 **Your Fortune:** ${fortune}`;
+    }
+  },
+  '/rps': {
+    description: 'Play rock, paper, scissors (e.g., /rps rock)',
+    handler: (args?: string[]) => {
+      const choices = ['rock', 'paper', 'scissors'];
+      const userChoice = args?.[0]?.toLowerCase();
+      
+      if (!userChoice || !choices.includes(userChoice)) {
+        return 'Please choose rock, paper, or scissors! (e.g., /rps rock)';
+      }
+      
+      const botChoice = choices[Math.floor(Math.random() * choices.length)];
+      const emojis = { rock: '🪨', paper: '📄', scissors: '✂️' };
+      
+      let result;
+      if (userChoice === botChoice) {
+        result = 'It\'s a tie! 🤝';
+      } else if (
+        (userChoice === 'rock' && botChoice === 'scissors') ||
+        (userChoice === 'paper' && botChoice === 'rock') ||
+        (userChoice === 'scissors' && botChoice === 'paper')
+      ) {
+        result = 'You win! 🎉';
+      } else {
+        result = 'You lose! 😢';
+      }
+      
+      return `${emojis[userChoice as keyof typeof emojis]} vs ${emojis[botChoice as keyof typeof emojis]} - **${result}**`;
+    }
+  },
+  '/quote': {
+    description: 'Get an inspirational quote',
+    handler: () => {
+      const quotes = [
+        '"The only way to do great work is to love what you do." - Steve Jobs 💼',
+        '"Life is what happens when you\'re busy making other plans." - John Lennon 🎵',
+        '"The future belongs to those who believe in the beauty of their dreams." - Eleanor Roosevelt 🌟',
+        '"Success is not final, failure is not fatal: it is the courage to continue that counts." - Winston Churchill 🏛️',
+        '"The only limit to our realization of tomorrow will be our doubts of today." - Franklin D. Roosevelt 🇺🇸',
+        '"It does not matter how slowly you go as long as you do not stop." - Confucius 🏃',
+        '"The journey of a thousand miles begins with one step." - Lao Tzu 🚶',
+        '"Believe you can and you\'re halfway there." - Theodore Roosevelt 🎯',
+        '"What you get by achieving your goals is not as important as what you become by achieving your goals." - Zig Ziglar 🎖️',
+        '"The mind is everything. What you think you become." - Buddha 🧘'
+      ];
+      const quote = quotes[Math.floor(Math.random() * quotes.length)];
+      return `💭 **${quote}**`;
+    }
+  }
+};
+
 interface ChatLayoutProps {
   user: User;
   selectedChatId?: string;
@@ -892,6 +1071,69 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
           selectedChat={selectedChat}
           onSendMessage={async (content: string) => {
             if (!selectedChat) return;
+
+            // Check if this is a command
+            if (content.startsWith('/')) {
+              const [command, ...args] = content.split(' ');
+              const commandHandler = COMMANDS[command];
+              
+              if (commandHandler) {
+                const response = commandHandler.handler(args);
+                // Send the command response as a message
+                const { data: profile } = await supabase
+                  .from("users")
+                  .select("username")
+                  .eq("id", user.id)
+                  .maybeSingle();
+
+                const senderUsername =
+                  profile?.username || emailToUsername(user.email) || null;
+
+                const { error } = await supabase.from("messages").insert({
+                  content: response,
+                  sender_id: user.id,
+                  sender_name:
+                    (user.user_metadata as { full_name?: string })?.full_name ||
+                    null,
+                  sender_email: user.email || null,
+                  sender_username: senderUsername,
+                  [selectedChat.type === "dm" ? "direct_message_id" : "room_id"]:
+                    selectedChat.id,
+                });
+
+                if (error) {
+                  console.error("Error sending command response:", error);
+                }
+                return; // Don't process as regular message
+              } else {
+                // Unknown command - send error message
+                const { data: profile } = await supabase
+                  .from("users")
+                  .select("username")
+                  .eq("id", user.id)
+                  .maybeSingle();
+
+                const senderUsername =
+                  profile?.username || emailToUsername(user.email) || null;
+
+                const { error } = await supabase.from("messages").insert({
+                  content: `❌ **Unknown command:** ${command}\nUse \`/help\` to see available commands.`,
+                  sender_id: user.id,
+                  sender_name:
+                    (user.user_metadata as { full_name?: string })?.full_name ||
+                    null,
+                  sender_email: user.email || null,
+                  sender_username: senderUsername,
+                  [selectedChat.type === "dm" ? "direct_message_id" : "room_id"]:
+                    selectedChat.id,
+                });
+
+                if (error) {
+                  console.error("Error sending command error:", error);
+                }
+                return; // Don't process as regular message
+              }
+            }
 
             // Fetch sender's canonical username from profile
             const { data: profile } = await supabase

@@ -1452,3 +1452,140 @@
     height: 120px;
   }
 }
+
+/* Command Suggestions Styles */
+.commandSuggestions {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 300px;
+  overflow: hidden;
+  z-index: 1000;
+  margin-bottom: 8px;
+}
+
+.commandSuggestionsHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+}
+
+.commandSuggestionsIcon {
+  font-size: 14px;
+  color: var(--color-muted-text);
+}
+
+.commandSuggestionsTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.commandSuggestionsList {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.commandSuggestionItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+
+.commandSuggestionItem:hover {
+  background: var(--color-surface-secondary);
+}
+
+.commandSuggestionSelected {
+  background: var(--color-primary);
+  color: white;
+}
+
+.commandSuggestionSelected .commandSuggestionName,
+.commandSuggestionSelected .commandSuggestionDescription {
+  color: white;
+}
+
+.commandSuggestionIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  background: var(--color-surface-secondary);
+  flex-shrink: 0;
+}
+
+.commandSuggestionSelected .commandSuggestionIcon {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.commandSuggestionContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.commandSuggestionName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 2px;
+}
+
+.commandSuggestionDescription {
+  font-size: 12px;
+  color: var(--color-muted-text);
+  line-height: 1.3;
+}
+
+/* Mobile styles for command suggestions */
+@media (max-width: 767px) {
+  .commandSuggestions {
+    position: fixed;
+    bottom: 80px;
+    left: 16px;
+    right: 16px;
+    max-height: 250px;
+  }
+  
+  .commandSuggestionsList {
+    max-height: 200px;
+  }
+  
+  .commandSuggestionItem {
+    padding: 16px;
+  }
+  
+  .commandSuggestionIcon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+  
+  .commandSuggestionName {
+    font-size: 16px;
+  }
+  
+  .commandSuggestionDescription {
+    font-size: 14px;
+  }
+}
