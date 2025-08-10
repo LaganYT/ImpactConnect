@@ -21,6 +21,9 @@
   --color-badge-text: #374151;
   --color-badge-admin-bg: #fde68a;
   --color-badge-admin-text: #111827;
+  --color-primary: #667eea;
+  --color-primary-hover: #5a6fd8;
+  --color-text-secondary: #6b7280;
 }
 
 [data-theme="dark"] {
@@ -46,12 +49,26 @@
   --color-badge-text: #e5e7eb;
   --color-badge-admin-bg: #78350f;
   --color-badge-admin-text: #fde68a;
+  --color-primary: #667eea;
+  --color-primary-hover: #5a6fd8;
+  --color-text-secondary: #9ca3af;
+}
+
+/* Mobile-first responsive breakpoints */
+:root {
+  --mobile: 480px;
+  --tablet: 768px;
+  --desktop: 1024px;
+  --wide: 1280px;
 }
 
 html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
+  /* Ensure proper viewport behavior on mobile */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
 }
 
 body {
@@ -60,6 +77,9 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Mobile-friendly font sizing */
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 * {
@@ -71,4 +91,137 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* Mobile responsive utilities */
+.hidden-mobile {
+  display: none;
+}
+
+.hidden-tablet {
+  display: block;
+}
+
+.hidden-desktop {
+  display: none;
+}
+
+/* Tablet breakpoint */
+@media (min-width: 768px) {
+  .hidden-mobile {
+    display: block;
+  }
+  
+  .hidden-tablet {
+    display: none;
+  }
+  
+  .hidden-desktop {
+    display: none;
+  }
+}
+
+/* Desktop breakpoint */
+@media (min-width: 1024px) {
+  .hidden-desktop {
+    display: block;
+  }
+}
+
+/* Mobile-specific styles */
+@media (max-width: 767px) {
+  body {
+    font-size: 14px;
+  }
+  
+  /* Prevent zoom on input focus on iOS */
+  input, textarea, select {
+    font-size: 16px;
+  }
+  
+  /* Touch-friendly button sizing */
+  button, .button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Mobile-friendly spacing */
+  .mobile-padding {
+    padding: 16px;
+  }
+  
+  .mobile-margin {
+    margin: 16px;
+  }
+}
+
+/* Tablet-specific styles */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .tablet-padding {
+    padding: 20px;
+  }
+  
+  .tablet-margin {
+    margin: 20px;
+  }
+}
+
+/* Desktop-specific styles */
+@media (min-width: 1024px) {
+  .desktop-padding {
+    padding: 24px;
+  }
+  
+  .desktop-margin {
+    margin: 24px;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Ensure crisp rendering on retina displays */
+  img, svg {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark mode preference */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --color-bg: #0b0f16;
+    --color-text: #ffffff;
+    --color-muted-text: #9ca3af;
+    --color-border: #334155;
+    --color-surface: #0f172a;
+    --color-surface-2: #111827;
+    --color-hover: #0b1220;
+    --color-selected: #1f2937;
+    --color-overlay: rgba(0, 0, 0, 0.6);
+    --color-input-bg: #0f172a;
+    --color-input-disabled: #0b1220;
+    --color-avatar-neutral: #1f2937;
+    --color-avatar-neutral-text: #9ca3af;
+    --color-label: #9ca3af;
+    --color-title: #f3f4f6;
+    --color-card-shadow: none;
+    --color-modal-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    --color-bubble-incoming: #1f2937;
+    --color-badge-bg: #1f2937;
+    --color-badge-text: #e5e7eb;
+    --color-badge-admin-bg: #78350f;
+    --color-badge-admin-text: #fde68a;
+    --color-primary: #667eea;
+    --color-primary-hover: #5a6fd8;
+    --color-text-secondary: #9ca3af;
+  }
 }
