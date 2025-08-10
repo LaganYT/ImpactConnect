@@ -1164,6 +1164,10 @@ export default function ChatWindow({
       return false;
     }
   };
+
+  const isBotMessage = (m: UIMessage): boolean => {
+    return m.sender_username === 'bot' || m.sender_name?.includes(' - Used a command');
+  };
   const canDeleteMessage = (message: UIMessage) => {
     if (message.sender_id === user.id) return true;
     if (selectedChat?.type === "room" && isRoomAdmin) return true;
@@ -1436,7 +1440,9 @@ export default function ChatWindow({
               return (
                 <div
                   key={message.id}
-                  className={`${styles.message} ${isOwn ? styles.ownMessage : ""}`}
+                  className={`${styles.message} ${isOwn ? styles.ownMessage : ""} ${
+                    isBotMessage(message) ? styles.botMessage : ""
+                  }`}
                   onContextMenu={(e) => openContextMenu(e, message.id)}
                 >
                   <div className={styles.messageRow}>
@@ -1550,6 +1556,7 @@ export default function ChatWindow({
                           );
                         }
                         const content = message.content;
+                        
                         // Poll rendering takes precedence over markdown/text
                         if (isPollMessage(message)) {
                           return (

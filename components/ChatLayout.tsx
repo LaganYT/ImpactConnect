@@ -1077,45 +1077,35 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
               const [command, ...args] = content.split(' ');
               const commandHandler = COMMANDS[command];
               
+              // Fetch sender's canonical username from profile
+              const { data: profile } = await supabase
+                .from("users")
+                .select("username")
+                .eq("id", user.id)
+                .maybeSingle();
+
+              const senderUsername =
+                profile?.username || emailToUsername(user.email) || null;
+              
               if (commandHandler) {
+                // Send the command response as a bot-like message
                 const response = commandHandler.handler(args);
-                // Send the command response as a message
-                const { data: profile } = await supabase
-                  .from("users")
-                  .select("username")
-                  .eq("id", user.id)
-                  .maybeSingle();
-
-                const senderUsername =
-                  profile?.username || emailToUsername(user.email) || null;
-
-                const { error } = await supabase.from("messages").insert({
+                const { error: responseError } = await supabase.from("messages").insert({
                   content: response,
                   sender_id: user.id,
-                  sender_name:
-                    (user.user_metadata as { full_name?: string })?.full_name ||
-                    null,
+                  sender_name: `${senderUsername || emailToUsername(user.email) || 'User'} - Used a command ${command}`,
                   sender_email: user.email || null,
-                  sender_username: senderUsername,
+                  sender_username: "bot",
                   [selectedChat.type === "dm" ? "direct_message_id" : "room_id"]:
                     selectedChat.id,
                 });
 
-                if (error) {
-                  console.error("Error sending command response:", error);
+                if (responseError) {
+                  console.error("Error sending command response:", responseError);
                 }
                 return; // Don't process as regular message
               } else {
                 // Unknown command - send error message
-                const { data: profile } = await supabase
-                  .from("users")
-                  .select("username")
-                  .eq("id", user.id)
-                  .maybeSingle();
-
-                const senderUsername =
-                  profile?.username || emailToUsername(user.email) || null;
-
                 const { error } = await supabase.from("messages").insert({
                   content: `❌ **Unknown command:** ${command}\nUse \`/help\` to see available commands.`,
                   sender_id: user.id,
