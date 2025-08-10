@@ -557,7 +557,7 @@ export default function ChatWindow({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [messages]);
 
   // When switching/opening a chat and after initial load completes, snap to bottom
   useEffect(() => {
@@ -566,7 +566,7 @@ export default function ChatWindow({
       // Delay to allow DOM to paint
       setTimeout(() => scrollToBottom(false), 0);
     }
-  }, [selectedChat, loading]);
+  }, [selectedChat, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-focus the message input when entering a chat and after messages load
   useEffect(() => {

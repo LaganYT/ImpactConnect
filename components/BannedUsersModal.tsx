@@ -74,7 +74,7 @@ export default function BannedUsersModal({
     }
   };
 
-  const getDisplayName = (user: { full_name?: string | null; username?: string | null; email?: string | null } | null) => {
+  const getDisplayName = (user: { full_name?: string | null; username?: string | null; email?: string | null } | null | undefined) => {
     if (!user) return "Unknown User";
     return user.full_name || user.username || user.email?.split("@")[0] || "Unknown";
   };
