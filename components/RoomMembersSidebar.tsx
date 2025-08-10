@@ -363,7 +363,6 @@ export default function RoomMembersSidebar({
         isOpen={contextMenu.open}
         position={contextMenu.position}
         targetUser={contextMenu.targetUser}
-        currentUser={user}
         roomId={roomId}
         onClose={closeContextMenu}
         onAction={fetchMembers}
@@ -372,7 +371,6 @@ export default function RoomMembersSidebar({
       <BannedUsersModal
         isOpen={bannedUsersModal}
         onClose={() => setBannedUsersModal(false)}
-        currentUser={user}
         roomId={roomId}
       />
     </aside>

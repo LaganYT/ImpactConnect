@@ -6,7 +6,6 @@ import { ChatSession } from "@/lib/types";
 import { createClient } from "@/lib/supabase";
 import { useToastContext } from "./ToastProvider";
 import ConfirmModal from "./ConfirmModal";
-import InputModal from "./InputModal";
 import styles from "./Sidebar.module.css";
 import Link from "next/link";
 

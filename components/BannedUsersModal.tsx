@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { User } from "@supabase/supabase-js";
 import { BannedUser } from "@/lib/types";
 import { createClient } from "@/lib/supabase";
 import styles from "./BannedUsersModal.module.css";
@@ -9,14 +8,12 @@ import styles from "./BannedUsersModal.module.css";
 interface BannedUsersModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentUser: User;
   roomId: string;
 }
 
 export default function BannedUsersModal({
   isOpen,
   onClose,
-  currentUser,
   roomId,
 }: BannedUsersModalProps) {
   const [bannedUsers, setBannedUsers] = useState<BannedUser[]>([]);
@@ -28,7 +25,7 @@ export default function BannedUsersModal({
     if (isOpen && roomId) {
       fetchBannedUsers();
     }
-  }, [isOpen, roomId]);
+  }, [isOpen, roomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchBannedUsers = async () => {
     setLoading(true);
@@ -77,7 +74,7 @@ export default function BannedUsersModal({
     }
   };
 
-  const getDisplayName = (user: any) => {
+  const getDisplayName = (user: { full_name?: string | null; username?: string | null; email?: string | null } | null) => {
     if (!user) return "Unknown User";
     return user.full_name || user.username || user.email?.split("@")[0] || "Unknown";
   };

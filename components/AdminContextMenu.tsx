@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase";
 import styles from "./AdminContextMenu.module.css";
 
@@ -17,7 +16,6 @@ interface AdminContextMenuProps {
       full_name?: string | null;
     } | null;
   } | null;
-  currentUser: User;
   roomId: string;
   onClose: () => void;
   onAction: () => void;
@@ -27,7 +25,6 @@ export default function AdminContextMenu({
   isOpen,
   position,
   targetUser,
-  currentUser,
   roomId,
   onClose,
   onAction,

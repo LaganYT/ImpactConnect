@@ -56,7 +56,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
     return () => {
       if (typeof cleanup === "function") cleanup();
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle ban error from URL parameter
   useEffect(() => {

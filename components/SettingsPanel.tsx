@@ -29,13 +29,13 @@ export default function SettingsPanel() {
           | "dark"
           | "system"
           | null;
-        if (stored === "light" || stored === "dark" || stored === "system")
-          return stored;
-      }
-    } catch (_) {
-      // ignore
+              if (stored === "light" || stored === "dark" || stored === "system")
+        return stored;
     }
-    return "system";
+  } catch {
+    // ignore
+  }
+  return "system";
   });
 
   const normalizeUsername = (raw: string): string => {
@@ -115,7 +115,7 @@ export default function SettingsPanel() {
       const next =
         theme === "system" ? (prefersDark ? "dark" : "light") : theme;
       document.documentElement.setAttribute("data-theme", next);
-    } catch (_) {
+    } catch {
       // ignore
     }
   }, [theme]);
@@ -133,7 +133,7 @@ export default function SettingsPanel() {
         .from("users")
         .update({ theme_preference: nextTheme })
         .eq("id", user.id);
-    } catch (_) {
+    } catch {
       // Best-effort; localStorage still persists
     }
   };

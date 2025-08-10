@@ -81,7 +81,6 @@ export default function ChatWindow({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
   const [showInviteInput, setShowInviteInput] = useState(false);
-  const [inviteCode, setInviteCode] = useState("");
   // Emoji picker state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   // GIF picker state
@@ -298,7 +297,7 @@ export default function ChatWindow({
       if (typeof cleanupTyping === "function") cleanupTyping();
       if (typeof cleanupNicks === "function") cleanupNicks();
     };
-  }, [selectedChat]);
+  }, [selectedChat]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close emoji picker when clicking outside or pressing Escape
   useEffect(() => {
@@ -558,7 +557,7 @@ export default function ChatWindow({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When switching/opening a chat and after initial load completes, snap to bottom
   useEffect(() => {
@@ -1335,7 +1334,7 @@ export default function ChatWindow({
         .upsert(rows, { onConflict: "message_id,user_id" });
     };
     markReadReceipts();
-  }, [messages, selectedChat, isWindowFocused, isTabVisible]);
+  }, [messages, selectedChat, isWindowFocused, isTabVisible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!selectedChat) {
     return (
@@ -1542,7 +1541,7 @@ export default function ChatWindow({
                                       {children}
                                     </a>
                                   ),
-                                   span: ({ node, ...props }) => {
+                                   span: ({ ...props }) => {
                                      const className = (props.className || '') as string
                                      if (className.split(' ').includes('spoiler')) {
                                        return (
@@ -1571,6 +1570,7 @@ export default function ChatWindow({
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img
                                       {...(props as React.ImgHTMLAttributes<HTMLImageElement>)}
+                                      alt=""
                                       style={{
                                         maxWidth: 320,
                                         borderRadius: 12,

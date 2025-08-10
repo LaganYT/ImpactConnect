@@ -20,9 +20,9 @@ export default async function AcceptInvitePage({
     // If RPC isn't installed, this will error; we ignore and just redirect
     await supabase.rpc("accept_invite_by_code", { p_invite_code: code });
     redirect("/chat");
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle ban error specifically
-    if (error.message?.includes("banned")) {
+    if (error instanceof Error && error.message?.includes("banned")) {
       redirect("/chat?error=banned");
     }
     // For other errors, just redirect to chat

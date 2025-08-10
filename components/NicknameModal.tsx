@@ -139,6 +139,7 @@ export default function NicknameModal({
             }}
           >
             {targetUser.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={targetUser.avatar_url}
                 alt="Avatar"

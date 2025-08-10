@@ -130,7 +130,7 @@ export async function GET(request: Request) {
       favicon,
       contentType,
     });
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       { ok: false, error: "Failed to fetch preview" },
       { status: 500 },

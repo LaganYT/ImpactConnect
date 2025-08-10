@@ -67,7 +67,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ ok: true, embedUrl });
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       { ok: false, error: "Failed to resolve" },
       { status: 500 },
