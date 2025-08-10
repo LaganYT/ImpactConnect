@@ -1166,7 +1166,7 @@ export default function ChatWindow({
   };
 
   const isBotMessage = (m: UIMessage): boolean => {
-    return m.sender_username === 'bot' || (m.sender_name && m.sender_name.includes(' - Used a command'));
+    return m.sender_username === 'bot' || Boolean(m.sender_name && m.sender_name.includes(' - Used a command'));
   };
   const canDeleteMessage = (message: UIMessage) => {
     if (message.sender_id === user.id) return true;
