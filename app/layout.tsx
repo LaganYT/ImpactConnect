@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ToastProvider } from "@/components/ToastProvider";
 
 export const metadata: Metadata = {
   title: "ImpactConnect - Modern Chat Application",
@@ -20,7 +21,9 @@ export default function RootLayout({
               "(function(){try{var t=localStorage.getItem('theme');var m=window.matchMedia('(prefers-color-scheme: dark)').matches;var theme=(t&&t!=='system')?t:(m?'dark':'light');document.documentElement.setAttribute('data-theme', theme);}catch(e){}})()",
           }}
         />
-        {children}
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

@@ -7,4 +7,4 @@
 - Add LTunes support
 
 ## Bug fixes
-- Replace all alerts with inputs with popups and alerts without input with toast notifications
+

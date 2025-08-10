@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase";
 import { emailToUsername } from "@/lib/usernames";
+import { useToastContext } from "./ToastProvider";
 import Modal from "./Modal";
 
 interface NicknameModalProps {
@@ -32,6 +33,7 @@ export default function NicknameModal({
   const [nickname, setNickname] = useState("");
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
+  const toast = useToastContext();
 
   useEffect(() => {
     if (open) {
@@ -84,7 +86,7 @@ export default function NicknameModal({
       onClose();
     } catch (e) {
       console.error("Failed to set nickname", e);
-      alert("Failed to set nickname");
+      toast.error("Failed to set nickname");
     } finally {
       setSaving(false);
     }
@@ -103,7 +105,7 @@ export default function NicknameModal({
       onClose();
     } catch (e) {
       console.error("Failed to remove nickname", e);
-      alert("Failed to remove nickname");
+      toast.error("Failed to remove nickname");
     } finally {
       setSaving(false);
     }

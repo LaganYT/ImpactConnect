@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { ChatSession } from "@/lib/types";
 import { createClient } from "@/lib/supabase";
+import { useToastContext } from "./ToastProvider";
+import ConfirmModal from "./ConfirmModal";
+import InputModal from "./InputModal";
 import styles from "./Sidebar.module.css";
 import Link from "next/link";
 
@@ -39,8 +42,11 @@ export default function Sidebar({
     id: string;
     name: string;
   } | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [roomToDelete, setRoomToDelete] = useState<{ id: string; name: string } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const supabase = createClient();
+  const toast = useToastContext();
 
   const handleNewDM = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,12 +65,12 @@ export default function Sidebar({
       );
 
       if (resolveError || !resolvedUserId) {
-        alert("User not found");
+        toast.error("User not found");
         return;
       }
 
       if (resolvedUserId === user.id) {
-        alert("You cannot create a DM with yourself");
+        toast.error("You cannot create a DM with yourself");
         return;
       }
 
@@ -78,7 +84,7 @@ export default function Sidebar({
         .single();
 
       if (existingDM) {
-        alert("Direct message already exists");
+        toast.error("Direct message already exists");
         return;
       }
 
@@ -98,7 +104,7 @@ export default function Sidebar({
       window.location.reload();
     } catch (error) {
       console.error("Error creating DM:", error);
-      alert("Failed to create direct message");
+      toast.error("Failed to create direct message");
     } finally {
       setLoading(false);
       setShowNewChat(false);
@@ -124,7 +130,7 @@ export default function Sidebar({
       window.location.reload();
     } catch (error) {
       console.error("Error creating room:", error);
-      alert("Failed to create room");
+      toast.error("Failed to create room");
     } finally {
       setLoading(false);
       setShowNewRoom(false);
@@ -191,7 +197,7 @@ export default function Sidebar({
       window.location.reload();
     } catch (err) {
       console.error("Failed to rename room", err);
-      alert("Failed to rename room");
+      toast.error("Failed to rename room");
     } finally {
       setLoading(false);
       setEditingRoom(null);
@@ -200,24 +206,28 @@ export default function Sidebar({
 
   const handleDeleteRoom = async () => {
     if (!contextMenu.roomId) return;
-    if (
-      !confirm("Delete this room? This will remove all messages and members.")
-    )
-      return;
+    setRoomToDelete({ id: contextMenu.roomId, name: contextMenu.roomName || "this room" });
+    setShowDeleteConfirm(true);
+    setContextMenu({ visible: false, x: 0, y: 0 });
+  };
+
+  const confirmDeleteRoom = async () => {
+    if (!roomToDelete) return;
     try {
       setLoading(true);
       const { error } = await supabase
         .from("rooms")
         .delete()
-        .eq("id", contextMenu.roomId);
+        .eq("id", roomToDelete.id);
       if (error) throw error;
       window.location.href = "/chat/landing";
     } catch (err) {
       console.error("Failed to delete room", err);
-      alert("Failed to delete room");
+      toast.error("Failed to delete room");
     } finally {
       setLoading(false);
-      setContextMenu({ visible: false, x: 0, y: 0 });
+      setShowDeleteConfirm(false);
+      setRoomToDelete(null);
     }
   };
 
@@ -508,6 +518,21 @@ export default function Sidebar({
           </form>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title="Delete Room"
+        message={`Are you sure you want to delete "${roomToDelete?.name}"? This will remove all messages and members.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+        onConfirm={confirmDeleteRoom}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setRoomToDelete(null);
+        }}
+      />
     </div>
   );
 }

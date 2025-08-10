@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase";
+import { useToastContext } from "./ToastProvider";
 import styles from "./PollCard.module.css";
 
 type PollContent = {
@@ -22,6 +23,7 @@ type Vote = { message_id: string; user_id: string; option_index: number };
 
 export default function PollCard({ messageId, content, userId }: PollCardProps) {
   const supabase = createClient();
+  const toast = useToastContext();
   const poll: PollContent | null = useMemo(() => {
     try {
       const parsed = JSON.parse(content) as PollContent;
@@ -119,7 +121,7 @@ export default function PollCard({ messageId, content, userId }: PollCardProps) 
         );
     } catch (e) {
       console.error("Failed to cast vote", e);
-      alert("Failed to cast vote");
+      toast.error("Failed to cast vote");
     } finally {
       setSaving(false);
     }

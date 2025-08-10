@@ -1,0 +1,72 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.message {
+  margin: 0;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 80px;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancel {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.cancel:hover:not(:disabled) {
+  background: var(--color-surface-3);
+}
+
+.confirm {
+  color: white;
+  font-weight: 600;
+}
+
+.confirm.info {
+  background: #3b82f6;
+}
+
+.confirm.info:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.confirm.warning {
+  background: #f59e0b;
+}
+
+.confirm.warning:hover:not(:disabled) {
+  background: #d97706;
+}
+
+.confirm.danger {
+  background: #ef4444;
+}
+
+.confirm.danger:hover:not(:disabled) {
+  background: #dc2626;
+}

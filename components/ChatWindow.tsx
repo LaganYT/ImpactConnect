@@ -10,6 +10,9 @@ import { User, type RealtimeChannel } from "@supabase/supabase-js";
 import { ChatSession, Message } from "@/lib/types";
 import { createClient } from "@/lib/supabase";
 import { emailToUsername } from "@/lib/usernames";
+import { useToastContext } from "./ToastProvider";
+import ConfirmModal from "./ConfirmModal";
+import InputModal from "./InputModal";
 import styles from "./ChatWindow.module.css";
 import PollCard from "./PollCard";
 import Modal from "./Modal";
@@ -36,6 +39,7 @@ export default function ChatWindow({
   selectedChat,
   onSendMessage,
 }: ChatWindowProps) {
+  const toast = useToastContext();
   type SenderLite = {
     id: string;
     avatar_url?: string | null;
@@ -74,6 +78,9 @@ export default function ChatWindow({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState<string>("");
   const [isRoomAdmin, setIsRoomAdmin] = useState<boolean>(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
+  const [showInviteInput, setShowInviteInput] = useState(false);
   // Emoji picker state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   // GIF picker state
@@ -138,7 +145,7 @@ export default function ChatWindow({
           const d = new Date(expiresAtLocal);
           if (!isNaN(d.getTime())) {
             if (d.getTime() <= Date.now()) {
-              alert("Expiration must be in the future");
+              toast.error("Expiration must be in the future");
               setSaving(false);
               return;
             }
@@ -164,7 +171,7 @@ export default function ChatWindow({
         onClose();
       } catch (e) {
         console.error("Failed to create poll", e);
-        alert("Failed to create poll");
+        toast.error("Failed to create poll");
       } finally {
         setSaving(false);
       }
@@ -1045,7 +1052,7 @@ export default function ChatWindow({
       const imgbbKey = process.env.NEXT_PUBLIC_IMGBB_KEY as string | undefined;
 
       if (!isImage) {
-        alert("Only image uploads are allowed");
+        toast.error("Only image uploads are allowed");
         return;
       }
 
@@ -1058,7 +1065,7 @@ export default function ChatWindow({
       await onSendMessage(url);
     } catch (err) {
       console.error("File upload failed", err);
-      alert(err instanceof Error ? err.message : "File upload failed");
+      toast.error(err instanceof Error ? err.message : "File upload failed");
     } finally {
       setUploadingFile(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -1161,24 +1168,32 @@ export default function ChatWindow({
 
   const handleDeleteMessage = async (id: string) => {
     setContextMenu(null);
+    setMessageToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteMessage = async () => {
+    if (!messageToDelete) return;
     try {
-      const ok = window.confirm("Delete this message?");
-      if (!ok) return;
       const nowIso = new Date().toISOString();
       await supabase
         .from("messages")
         .update({ content: "[Deleted Message]", updated_at: nowIso })
-        .eq("id", id);
+        .eq("id", messageToDelete);
       // Optimistic soft-delete; realtime will also reflect
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === id
+          m.id === messageToDelete
             ? { ...m, content: "[Deleted Message]", updated_at: nowIso }
             : m,
         ),
       );
     } catch (e) {
       console.error("Failed to delete message", e);
+      toast.error("Failed to delete message");
+    } finally {
+      setShowDeleteConfirm(false);
+      setMessageToDelete(null);
     }
   };
 
@@ -1322,9 +1337,9 @@ export default function ChatWindow({
                 const url = `${window.location.origin}/invite/${selectedChat.inviteCode}`;
                 try {
                   await navigator.clipboard.writeText(url);
-                  alert("Invite link copied to clipboard");
+                  toast.success("Invite link copied to clipboard");
                 } catch {
-                  prompt("Copy invite link:", url);
+                  setShowInviteInput(true);
                 }
               }}
             >
@@ -2083,6 +2098,37 @@ export default function ChatWindow({
           })()}
         </div>
       )}
+
+      {/* Delete Message Confirmation Modal */}
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title="Delete Message"
+        message="Are you sure you want to delete this message?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+        onConfirm={confirmDeleteMessage}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setMessageToDelete(null);
+        }}
+      />
+
+      {/* Invite Link Input Modal */}
+      <InputModal
+        open={showInviteInput}
+        title="Copy Invite Link"
+        message="Copy this invite link to share with others:"
+        defaultValue={selectedChat?.inviteCode ? `${window.location.origin}/invite/${selectedChat.inviteCode}` : ""}
+        confirmText="Copy"
+        cancelText="Close"
+        onConfirm={(value) => {
+          navigator.clipboard.writeText(value);
+          toast.success("Invite link copied to clipboard");
+          setShowInviteInput(false);
+        }}
+        onCancel={() => setShowInviteInput(false)}
+      />
     </div>
   );
 }
