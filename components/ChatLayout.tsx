@@ -13,6 +13,7 @@ import Modal from "./Modal";
 import { ChatSession, Room } from "@/lib/types";
 import { emailToUsername } from "@/lib/usernames";
 import styles from "./ChatLayout.module.css";
+import Link from "next/link";
 
 interface ChatLayoutProps {
   user: User;
@@ -417,14 +418,6 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
 
   return (
     <div className={styles.container}>
-      {/* Mobile menu overlay */}
-      {showMobileMenu && (
-        <div 
-          className={styles.mobileOverlay}
-          onClick={() => setShowMobileMenu(false)}
-        />
-      )}
-      
       {/* Mobile menu button */}
       <button
         className={styles.mobileMenuButton}
@@ -435,6 +428,201 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
           <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
         </svg>
       </button>
+
+      {/* Full Screen Mobile Menu */}
+      {showMobileMenu && (
+        <div className={styles.fullScreenMobileMenu}>
+          <div className={styles.mobileMenuHeader}>
+            <div className={styles.mobileMenuUserInfo}>
+              <div className={styles.mobileMenuAvatar}>
+                {(() => {
+                  if (user.user_metadata?.avatar_url) {
+                    return (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={user.user_metadata.avatar_url}
+                        alt="Avatar"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          borderRadius: "50%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    );
+                  }
+                  return (
+                    user.user_metadata?.full_name?.[0] || user.email?.[0] || "U"
+                  );
+                })()}
+              </div>
+              <div className={styles.mobileMenuUserDetails}>
+                <h3 className={styles.mobileMenuUserName}>
+                  {user.user_metadata?.full_name || "User"}
+                </h3>
+                <p className={styles.mobileMenuUserEmail}>{user.email}</p>
+              </div>
+            </div>
+            <div className={styles.mobileMenuActions}>
+              <button
+                type="button"
+                onClick={() => {
+                  // This will be handled by the Sidebar component
+                  setShowMobileMenu(false);
+                }}
+                className={styles.mobileMenuButton}
+                title="Settings"
+                aria-label="Settings"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M19.14,12.94a7.43,7.43,0,0,0,.05-.94,7.43,7.43,0,0,0-.05-.94l2.11-1.65a.5.5,0,0,0,.12-.64l-2-3.46a.5.5,0,0,0-.6-.22l-2.49,1a7.28,7.28,0,0,0-1.63-.94l-.38-2.65A.5.5,0,0,0,13.66,1H10.34a.5.5,0,0,0-.49.41L9.47,4.06a7.28,7.28,0,0,0-1.63.94l-2.49-1a.5.5,0,0,0-.6.22l-2,3.46a.5.5,0,0,0,.12.64L4.86,11.06a7.43,7.43,0,0,0-.05.94,7.43,7.43,0,0,0,.05.94L2.75,14.59a.5.5,0,0,0-.12.64l2,3.46a.5.5,0,0,0,.6.22l2.49-1a7.28,7.28,0,0,0,1.63.94l.38,2.65a.5.5,0,0,0,.49.41h3.32a.5.5,0,0,0,.49-.41l.38-2.65a7.28,7.28,0,0,0,1.63-.94l2.49,1a.5.5,0,0,0,.6-.22l2-3.46a.5.5,0,0,0-.12-.64ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => {
+                  onLogout();
+                  setShowMobileMenu(false);
+                }}
+                className={styles.mobileMenuButton}
+                title="Logout"
+                aria-label="Logout"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M10 17l1.41-1.41L8.83 13H21v-2H8.83l2.58-2.59L10 7l-5 5 5 5z" />
+                  <path d="M3 19h6v2H1V3h8v2H3z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowMobileMenu(false)}
+                className={styles.mobileMenuCloseButton}
+                title="Close menu"
+                aria-label="Close menu"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div className={styles.mobileMenuContent}>
+            <div className={styles.mobileMenuActions}>
+              <button
+                onClick={() => {
+                  // This will be handled by the Sidebar component
+                  setShowMobileMenu(false);
+                }}
+                className={styles.mobileMenuActionButton}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 14H4v-4h11v4zm0-5H4V9h11v4zm5 5h-4V9h4v9z"/>
+                </svg>
+                New DM
+              </button>
+              <button
+                onClick={() => {
+                  // This will be handled by the Sidebar component
+                  setShowMobileMenu(false);
+                }}
+                className={styles.mobileMenuActionButton}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                New Room
+              </button>
+            </div>
+
+            <div className={styles.mobileMenuSections}>
+              <div className={styles.mobileMenuSection}>
+                <h3 className={styles.mobileMenuSectionTitle}>Direct Messages</h3>
+                <div className={styles.mobileMenuChatList}>
+                  {chatSessions
+                    .filter((chat) => chat.type === "dm")
+                    .map((chat) => (
+                      <Link
+                        key={chat.id}
+                        className={`${styles.mobileMenuChatItem} ${
+                          selectedChat?.id === chat.id ? styles.mobileMenuSelected : ""
+                        }`}
+                        href={`/chat/${chat.id}`}
+                        onClick={() => setShowMobileMenu(false)}
+                      >
+                        <div className={styles.mobileMenuChatAvatar}>
+                          {chat.avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={chat.avatarUrl}
+                              alt="Avatar"
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                borderRadius: "50%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          ) : (
+                            chat.name?.replace(/^DM with\s+/i, "")?.trim()?.[0] ||
+                            chat.name?.[0] ||
+                            "U"
+                          )}
+                        </div>
+                        <div className={styles.mobileMenuChatInfo}>
+                          <h4 className={styles.mobileMenuChatName}>{chat.name}</h4>
+                          {chat.unread_count > 0 && (
+                            <span className={styles.mobileMenuUnreadBadge}>
+                              {chat.unread_count}
+                            </span>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                </div>
+              </div>
+
+              <div className={styles.mobileMenuSection}>
+                <h3 className={styles.mobileMenuSectionTitle}>Rooms</h3>
+                <div className={styles.mobileMenuChatList}>
+                  {chatSessions
+                    .filter((chat) => chat.type === "room")
+                    .map((chat) => (
+                      <Link
+                        key={chat.id}
+                        className={`${styles.mobileMenuChatItem} ${
+                          selectedChat?.id === chat.id ? styles.mobileMenuSelected : ""
+                        }`}
+                        href={`/chat/${chat.id}`}
+                        onClick={() => setShowMobileMenu(false)}
+                      >
+                        <div className={styles.mobileMenuRoomAvatar}>#</div>
+                        <div className={styles.mobileMenuChatInfo}>
+                          <h4 className={styles.mobileMenuChatName}>{chat.name}</h4>
+                          {chat.unread_count > 0 && (
+                            <span className={styles.mobileMenuUnreadBadge}>
+                              {chat.unread_count}
+                            </span>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className={`${styles.sidebarContainer} ${showMobileMenu ? styles.sidebarOpen : ''}`}>
         <Sidebar
