@@ -614,6 +614,11 @@
   overflow: hidden;
 }
 
+.gifContainer {
+  position: relative;
+  display: inline-block;
+}
+
 .gifPopover {
   position: absolute;
   bottom: 48px;
@@ -679,6 +684,11 @@
   object-fit: cover;
   border-radius: 6px;
   cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.gifItem:hover {
+  transform: scale(1.05);
 }
 
 .gifEmpty {
@@ -905,7 +915,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -919,7 +928,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -1030,6 +1038,19 @@
   border: 1px solid var(--color-border);
 }
 
+/* Mobile Picker Overlay */
+.mobilePickerOverlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
 /* Mobile styles (default) */
 @media (max-width: 767px) {
   .mobileTopNav {
@@ -1042,6 +1063,10 @@
 
   .mobileInputMenuButton {
     display: flex;
+  }
+
+  .mobilePickerOverlay {
+    display: block;
   }
 
   .emptyState {
@@ -1113,9 +1138,110 @@
     display: none;
   }
 
+  .emojiContainer {
+    display: none;
+  }
+
+  .gifContainer {
+    display: none;
+  }
+
+  .gifContainer:has(.gifPopover) {
+    display: block;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1001;
+  }
+
   .messageInput {
     padding: 6px 10px;
     font-size: 16px;
+  }
+
+  /* Mobile Emoji Picker */
+  .emojiPopover {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100vw - 32px);
+    max-width: 400px;
+    max-height: 60vh;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    z-index: 1001;
+  }
+
+  /* Mobile GIF Picker */
+  .gifPopover {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100vw - 32px);
+    max-width: 400px;
+    max-height: 70vh;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    z-index: 1001;
+  }
+
+  .gifPanel {
+    max-height: calc(70vh - 60px);
+  }
+
+  .gifSearchRow {
+    padding: 12px;
+    gap: 8px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .gifSearchInput {
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 8px;
+    min-height: 44px;
+  }
+
+  .gifSearchButton {
+    padding: 12px 16px;
+    font-size: 14px;
+    border-radius: 8px;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+
+  .gifGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 12px;
+    max-height: calc(70vh - 120px);
+    overflow-y: auto;
+  }
+
+  .gifItem {
+    height: 120px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+  }
+
+  .gifItem:active {
+    transform: scale(0.95);
+  }
+
+  .gifEmpty {
+    padding: 20px;
+    font-size: 14px;
+    text-align: center;
+  }
+
+  .gifLoading {
+    padding: 20px;
+    font-size: 14px;
+    text-align: center;
   }
 
   .fileAttachment {
@@ -1171,15 +1297,6 @@
 
   .linkPreviewSite {
     font-size: 10px;
-  }
-
-  .gifPopover {
-    width: 280px;
-    max-height: 320px;
-  }
-
-  .gifItem {
-    height: 70px;
   }
 
   .contextMenu {
