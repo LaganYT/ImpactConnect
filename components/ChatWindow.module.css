@@ -5,6 +5,8 @@
   height: 100vh;
   background: var(--color-surface);
   min-height: 0;
+  /* Ensure proper mobile layout */
+  overflow: hidden;
 }
 
 .emptyState {
@@ -213,6 +215,10 @@
   /* Ensure proper scrolling on mobile */
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  /* Prevent horizontal scrolling */
+  overflow-x: hidden;
+  /* Ensure proper height calculation */
+  height: 100%;
 }
 
 /* Mobile Input Menu Button */
@@ -1068,6 +1074,25 @@
     display: block;
   }
 
+  /* Improve mobile scrolling */
+  .chatWindow {
+    height: 100vh;
+    /* Account for mobile top bar */
+    padding-top: 100px; /* 76px (top bar position) + 24px (padding) */
+  }
+
+  .messagesContainer {
+    /* Enhanced mobile scrolling */
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    /* Ensure proper height on mobile */
+    height: calc(100vh - 100px - 80px); /* viewport - top bar - input area */
+    /* Better touch scrolling */
+    overscroll-behavior: contain;
+    /* Prevent zoom on double tap */
+    touch-action: pan-y;
+  }
+
   .emptyState {
     padding: 16px;
   }
@@ -1087,6 +1112,10 @@
   .messages {
     padding: 12px;
     gap: 10px;
+    /* Better mobile scrolling */
+    min-height: 100%;
+    /* Ensure proper spacing */
+    padding-bottom: 20px;
   }
 
   .messageContent {
@@ -1122,6 +1151,10 @@
 
   .messageForm {
     padding: 12px;
+    /* Ensure form doesn't interfere with scrolling */
+    flex-shrink: 0;
+    /* Prevent form from being scrollable */
+    overflow: visible;
   }
 
   .typingIndicator {
