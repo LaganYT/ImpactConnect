@@ -4,6 +4,7 @@
   flex-direction: column;
   height: 100vh;
   background: var(--color-surface);
+  min-height: 0;
 }
 
 .emptyState {
@@ -14,67 +15,76 @@
   justify-content: center;
   text-align: center;
   color: var(--color-muted-text);
-  padding: 40px;
+  padding: 20px;
 }
 
 .emptyIcon {
-  font-size: 64px;
+  font-size: 48px;
   margin-bottom: 16px;
 }
 
 .emptyState h2 {
   margin: 0 0 8px 0;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--color-text);
 }
 
 .emptyState p {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .header {
-  padding: 20px;
+  padding: 16px;
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: var(--color-surface);
+  flex-shrink: 0;
 }
 
 .chatInfo {
   flex: 1;
+  min-width: 0;
 }
 
 .chatName {
   margin: 0 0 4px 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chatType {
   margin: 0;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--color-muted-text);
 }
 
 .roomActions {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .inviteButton {
-  padding: 8px 16px;
+  padding: 8px 12px;
   background: #667eea;
   color: white;
   border: none;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  /* Touch-friendly sizing */
+  min-height: 44px;
+  white-space: nowrap;
 }
 
 .inviteButton:hover {
@@ -86,6 +96,7 @@
   overflow-y: auto;
   background: var(--color-surface-2);
   position: relative;
+  min-height: 0;
 }
 
 .loadingMessages {
@@ -96,6 +107,7 @@
   height: 100%;
   gap: 16px;
   color: var(--color-muted-text);
+  padding: 20px;
 }
 
 .loadingSpinner {
@@ -117,10 +129,10 @@
 }
 
 .messages {
-  padding: 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .message {
@@ -128,16 +140,17 @@
   flex-direction: column;
   gap: 6px;
 }
+
 .avatar {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--color-avatar-neutral);
   color: var(--color-avatar-neutral-text);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   flex-shrink: 0;
   align-self: flex-end;
@@ -168,7 +181,7 @@
 
 .metaLeft {
   justify-content: flex-start;
-  padding-left: 48px;
+  padding-left: 44px;
 }
 
 .metaRight {
@@ -180,14 +193,14 @@
 }
 
 .messageContent {
-  max-width: 70%;
+  max-width: 85%;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
 .messageSender {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-muted-text);
   margin-bottom: 2px;
@@ -195,14 +208,14 @@
 
 .messageText {
   background: var(--color-bubble-incoming);
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 18px;
   font-size: 14px;
   line-height: 1.4;
   color: var(--color-text);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   word-wrap: break-word;
-  overflow-wrap: anywhere; /* allow breaking long unspaced strings */
+  overflow-wrap: anywhere;
   /* white-space handled by remark-breaks rendering */
 }
 
@@ -286,7 +299,7 @@
 }
 
 .messageTime {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--color-muted-text);
   align-self: flex-end;
   margin-top: 2px;
@@ -297,7 +310,7 @@
 }
 
 .readReceipt {
-  font-size: 11px;
+  font-size: 10px;
   color: #667eea;
   margin-top: 2px;
   align-self: flex-start;
@@ -305,7 +318,7 @@
 
 .deletedMessage {
   background: var(--color-bubble-incoming);
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 18px;
   font-size: 14px;
   line-height: 1.4;
@@ -320,15 +333,16 @@
 }
 
 .messageForm {
-  padding: 20px;
+  padding: 16px;
   border-top: 1px solid var(--color-border);
   background: var(--color-surface);
+  flex-shrink: 0;
 }
 
 .typingIndicator {
-  padding: 0 4px 10px 4px;
+  padding: 0 4px 8px 4px;
   color: var(--color-muted-text);
-  font-size: 12px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -336,8 +350,8 @@
 
 .typingIndicator::before {
   content: "";
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #667eea;
   display: inline-block;
@@ -361,7 +375,7 @@
 
 .inputContainer {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: flex-end;
 }
 
@@ -369,12 +383,12 @@
   position: relative;
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
 }
 
 .emojiButton {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   background: var(--color-surface-2);
   color: var(--color-text);
   border: 1px solid var(--color-border);
@@ -385,6 +399,9 @@
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
+  /* Touch-friendly sizing */
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .emojiButton:hover {
@@ -393,7 +410,7 @@
 
 .emojiPopover {
   position: absolute;
-  bottom: 52px;
+  bottom: 48px;
   left: 0;
   z-index: 1000;
   background: var(--color-surface);
@@ -405,7 +422,7 @@
 
 .gifPopover {
   position: absolute;
-  bottom: 52px;
+  bottom: 48px;
   left: 0;
   z-index: 1000;
   background: var(--color-surface);
@@ -413,8 +430,8 @@
   border-radius: 12px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
   overflow: hidden;
-  width: 380px;
-  max-height: 420px;
+  width: 320px;
+  max-height: 360px;
   display: flex;
 }
 
@@ -426,74 +443,82 @@
 
 .gifSearchRow {
   display: flex;
-  gap: 8px;
-  padding: 10px;
+  gap: 6px;
+  padding: 8px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
 }
 
 .gifSearchInput {
   flex: 1;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
   border: 1px solid var(--color-border);
   background: var(--color-input-bg);
   color: var(--color-text);
+  font-size: 14px;
 }
 
 .gifSearchButton {
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
   background: #667eea;
   color: white;
   border: none;
   cursor: pointer;
+  font-size: 12px;
+  /* Touch-friendly sizing */
+  min-height: 44px;
 }
 
 .gifGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  padding: 10px;
+  gap: 4px;
+  padding: 8px;
   overflow-y: auto;
 }
 
 .gifItem {
   width: 100%;
-  height: 100px;
+  height: 80px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
 }
 
 .gifEmpty {
-  padding: 12px;
+  padding: 10px;
   color: var(--color-muted-text);
+  font-size: 12px;
 }
 
 .gifLoading {
-  padding: 12px;
+  padding: 10px;
+  font-size: 12px;
 }
 
 .gifLabel {
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .messageInput {
   flex: 1;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border: 2px solid var(--color-border);
   border-radius: 16px;
   font-size: 14px;
   background: var(--color-input-bg);
   transition: border-color 0.2s ease;
   resize: none;
-  min-height: 24px;
-  max-height: 120px;
+  min-height: 20px;
+  max-height: 100px;
   line-height: 1.4;
   overflow-y: auto;
   color: var(--color-text);
+  /* Prevent zoom on iOS */
+  font-size: 16px;
 }
 
 .messageInput:focus {
@@ -508,8 +533,8 @@
 }
 
 .sendButton {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   background: #667eea;
   color: white;
   border: none;
@@ -520,6 +545,9 @@
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
+  /* Touch-friendly sizing */
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .sendButton:hover:not(:disabled) {
@@ -534,13 +562,13 @@
 }
 
 .sendIcon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .sendingSpinner {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border: 2px solid transparent;
   border-top: 2px solid white;
   border-radius: 50%;
@@ -549,12 +577,12 @@
 
 .fileAttachment {
   display: grid;
-  grid-template-columns: 36px 1fr auto;
+  grid-template-columns: 32px 1fr auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: var(--color-bubble-incoming);
-  padding: 12px 14px;
-  border-radius: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
@@ -564,13 +592,13 @@
 }
 
 .fileIcon {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 6px;
   background: rgba(0, 0, 0, 0.06);
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .ownMessage .fileIcon {
@@ -584,7 +612,7 @@
 }
 
 .fileName {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--color-text);
   white-space: nowrap;
@@ -597,7 +625,7 @@
 }
 
 .fileMeta {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--color-muted-text);
 }
 
@@ -607,7 +635,7 @@
 
 .fileActions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .fileButton,
@@ -615,11 +643,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 11px;
   border: none;
   text-decoration: none;
+  /* Touch-friendly sizing */
+  min-height: 32px;
 }
 
 .fileButton {
@@ -644,13 +674,13 @@
 /* Link preview card */
 .linkPreview {
   display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 12px;
+  grid-template-columns: 100px 1fr;
+  gap: 10px;
   text-decoration: none;
   background: var(--color-bubble-incoming);
   color: inherit;
-  padding: 12px;
-  border-radius: 14px;
+  padding: 10px;
+  border-radius: 12px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.08);
 }
 
@@ -660,10 +690,10 @@
 }
 
 .linkPreviewImage {
-  width: 120px;
-  height: 120px;
+  width: 100px;
+  height: 100px;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(0,0,0,0.06);
 }
 
@@ -671,12 +701,12 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 6px;
+  gap: 4px;
 }
 
 .linkPreviewTitle {
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -690,12 +720,12 @@
 }
 
 .linkPreviewDesc {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-muted-text);
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -706,60 +736,23 @@
 .linkPreviewFooter {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 6px;
+  margin-top: 2px;
 }
 
 .linkPreviewFavicon {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
 }
 
 .linkPreviewSite {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--color-muted-text);
 }
 
 .ownMessage .linkPreviewSite {
   color: rgba(255,255,255,0.9);
-}
-
-@media (max-width: 768px) {
-  .header {
-    padding: 16px;
-  }
-
-  .chatName {
-    font-size: 16px;
-  }
-
-  .messages {
-    padding: 16px;
-    gap: 12px;
-  }
-
-  .messageContent {
-    max-width: 85%;
-  }
-
-  .messageForm {
-    padding: 16px;
-  }
-
-  .inputContainer {
-    gap: 8px;
-  }
-
-  .sendButton {
-    width: 36px;
-    height: 36px;
-  }
-
-  .sendIcon {
-    width: 18px;
-    height: 18px;
-  }
 }
 
 /* Context menu for message actions */
@@ -773,7 +766,7 @@
   padding: 6px;
   display: flex;
   flex-direction: column;
-  min-width: 160px;
+  min-width: 140px;
 }
 
 .contextMenuItem {
@@ -781,11 +774,13 @@
   border: 0;
   background: transparent;
   text-align: left;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-text);
   cursor: pointer;
+  /* Touch-friendly sizing */
+  min-height: 44px;
 }
 
 .contextMenuItem:hover {
@@ -804,6 +799,8 @@
   background: var(--color-input-bg);
   color: var(--color-text);
   margin-bottom: 8px;
+  /* Prevent zoom on iOS */
+  font-size: 16px;
 }
 
 .editActions {
@@ -815,10 +812,12 @@
 .editCancel {
   appearance: none;
   border: none;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
+  /* Touch-friendly sizing */
+  min-height: 44px;
 }
 
 .editSave {
@@ -835,4 +834,278 @@
   background: transparent;
   color: var(--color-text);
   border: 1px solid var(--color-border);
+}
+
+/* Mobile styles (default) */
+@media (max-width: 767px) {
+  .emptyState {
+    padding: 16px;
+  }
+
+  .emptyIcon {
+    font-size: 40px;
+  }
+
+  .emptyState h2 {
+    font-size: 18px;
+  }
+
+  .emptyState p {
+    font-size: 13px;
+  }
+
+  .header {
+    padding: 12px 16px;
+  }
+
+  .chatName {
+    font-size: 15px;
+  }
+
+  .chatType {
+    font-size: 11px;
+  }
+
+  .inviteButton {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .messages {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .messageContent {
+    max-width: 90%;
+  }
+
+  .messageText {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 11px;
+  }
+
+  .metaLeft {
+    padding-left: 40px;
+  }
+
+  .messageSender {
+    font-size: 10px;
+  }
+
+  .messageTime {
+    font-size: 9px;
+  }
+
+  .readReceipt {
+    font-size: 9px;
+  }
+
+  .messageForm {
+    padding: 12px;
+  }
+
+  .typingIndicator {
+    font-size: 10px;
+    padding-bottom: 6px;
+  }
+
+  .inputContainer {
+    gap: 6px;
+  }
+
+  .emojiButton {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sendButton {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sendIcon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .messageInput {
+    padding: 6px 10px;
+    font-size: 16px;
+  }
+
+  .fileAttachment {
+    grid-template-columns: 28px 1fr auto;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .fileIcon {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+  }
+
+  .fileName {
+    font-size: 12px;
+  }
+
+  .fileMeta {
+    font-size: 10px;
+  }
+
+  .fileButton,
+  .fileButtonSecondary {
+    padding: 3px 6px;
+    font-size: 10px;
+    min-height: 28px;
+  }
+
+  .linkPreview {
+    grid-template-columns: 80px 1fr;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .linkPreviewImage {
+    width: 80px;
+    height: 80px;
+  }
+
+  .linkPreviewTitle {
+    font-size: 12px;
+  }
+
+  .linkPreviewDesc {
+    font-size: 11px;
+  }
+
+  .linkPreviewFavicon {
+    width: 12px;
+    height: 12px;
+  }
+
+  .linkPreviewSite {
+    font-size: 10px;
+  }
+
+  .gifPopover {
+    width: 280px;
+    max-height: 320px;
+  }
+
+  .gifItem {
+    height: 70px;
+  }
+
+  .contextMenu {
+    min-width: 120px;
+  }
+
+  .contextMenuItem {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}
+
+/* Tablet styles */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .header {
+    padding: 16px 20px;
+  }
+
+  .chatName {
+    font-size: 17px;
+  }
+
+  .chatType {
+    font-size: 13px;
+  }
+
+  .messages {
+    padding: 18px;
+    gap: 14px;
+  }
+
+  .messageContent {
+    max-width: 80%;
+  }
+
+  .messageForm {
+    padding: 18px;
+  }
+
+  .inputContainer {
+    gap: 10px;
+  }
+
+  .gifPopover {
+    width: 350px;
+    max-height: 380px;
+  }
+
+  .linkPreview {
+    grid-template-columns: 110px 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .linkPreviewImage {
+    width: 110px;
+    height: 110px;
+  }
+}
+
+/* Desktop styles */
+@media (min-width: 1024px) {
+  .header {
+    padding: 20px;
+  }
+
+  .chatName {
+    font-size: 18px;
+  }
+
+  .chatType {
+    font-size: 14px;
+  }
+
+  .messages {
+    padding: 20px;
+    gap: 16px;
+  }
+
+  .messageContent {
+    max-width: 70%;
+  }
+
+  .messageForm {
+    padding: 20px;
+  }
+
+  .inputContainer {
+    gap: 12px;
+  }
+
+  .gifPopover {
+    width: 380px;
+    max-height: 420px;
+  }
+
+  .linkPreview {
+    grid-template-columns: 120px 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .linkPreviewImage {
+    width: 120px;
+    height: 120px;
+  }
 }

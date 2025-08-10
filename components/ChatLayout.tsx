@@ -24,6 +24,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const supabase = createClient();
   const toast = useToastContext();
 
@@ -126,6 +127,25 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
       setSelectedChat(found);
     }
   }, [selectedChatId, chatSessions, selectedChat?.id]);
+
+  // Close mobile menu when chat is selected
+  useEffect(() => {
+    if (selectedChat) {
+      setShowMobileMenu(false);
+    }
+  }, [selectedChat]);
+
+  // Close mobile menu on window resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setShowMobileMenu(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const fetchChatSessions = async () => {
     try {
@@ -397,13 +417,35 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
 
   return (
     <div className={styles.container}>
-      <Sidebar
-        user={user}
-        chatSessions={chatSessions}
-        selectedChat={selectedChat}
-        onLogout={handleLogout}
-        onOpenSettings={() => setShowSettings(true)}
-      />
+      {/* Mobile menu overlay */}
+      {showMobileMenu && (
+        <div 
+          className={styles.mobileOverlay}
+          onClick={() => setShowMobileMenu(false)}
+        />
+      )}
+      
+      {/* Mobile menu button */}
+      <button
+        className={styles.mobileMenuButton}
+        onClick={() => setShowMobileMenu(!showMobileMenu)}
+        aria-label="Toggle menu"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+        </svg>
+      </button>
+
+      <div className={`${styles.sidebarContainer} ${showMobileMenu ? styles.sidebarOpen : ''}`}>
+        <Sidebar
+          user={user}
+          chatSessions={chatSessions}
+          selectedChat={selectedChat}
+          onLogout={handleLogout}
+          onOpenSettings={() => setShowSettings(true)}
+        />
+      </div>
+      
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         <ChatWindow
           user={user}
@@ -470,11 +512,13 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
           </Modal>
         )}
       </div>
-      {selectedChat?.type === "room" ? (
-        <RoomMembersSidebar user={user} selectedChat={selectedChat} />
-      ) : (
-        <DMMembersSidebar user={user} selectedChat={selectedChat} />
-      )}
+      <div className={styles.membersSidebarContainer}>
+        {selectedChat?.type === "room" ? (
+          <RoomMembersSidebar user={user} selectedChat={selectedChat} />
+        ) : (
+          <DMMembersSidebar user={user} selectedChat={selectedChat} />
+        )}
+      </div>
     </div>
   );
 }

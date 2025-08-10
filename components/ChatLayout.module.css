@@ -2,6 +2,9 @@
   display: flex;
   height: 100vh;
   background: var(--color-surface-2);
+  /* Mobile-first: stack vertically on small screens */
+  flex-direction: column;
+  position: relative;
 }
 
 .loadingContainer {
@@ -12,6 +15,7 @@
   height: 100vh;
   background: var(--color-surface-2);
   gap: 16px;
+  padding: 20px;
 }
 
 .loadingSpinner {
@@ -32,8 +36,142 @@
   }
 }
 
-@media (max-width: 768px) {
+/* Mobile navigation styles */
+.mobileMenuButton {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1001;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Touch-friendly sizing */
+  min-width: 44px;
+  min-height: 44px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.mobileMenuButton:hover {
+  background: var(--color-hover);
+  transform: scale(1.05);
+}
+
+.mobileOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  backdrop-filter: blur(2px);
+}
+
+.sidebarContainer {
+  position: relative;
+  z-index: 1000;
+  transition: transform 0.3s ease;
+}
+
+.membersSidebarContainer {
+  position: relative;
+  z-index: 1000;
+}
+
+/* Mobile styles (default) */
+@media (max-width: 767px) {
   .container {
     flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  .loadingContainer {
+    padding: 16px;
+  }
+  
+  .loadingSpinner {
+    width: 32px;
+    height: 32px;
+    border-width: 3px;
+  }
+
+  .mobileMenuButton {
+    display: flex;
+  }
+
+  .sidebarContainer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    transform: translateX(-100%);
+    z-index: 1000;
+  }
+
+  .sidebarContainer.sidebarOpen {
+    transform: translateX(0);
+  }
+
+  .membersSidebarContainer {
+    display: none;
+  }
+}
+
+/* Tablet styles */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .container {
+    flex-direction: row;
+    height: 100vh;
+  }
+  
+  .loadingContainer {
+    padding: 20px;
+  }
+
+  .mobileMenuButton {
+    display: none;
+  }
+
+  .sidebarContainer {
+    position: relative;
+    transform: none;
+  }
+
+  .membersSidebarContainer {
+    display: block;
+  }
+}
+
+/* Desktop styles */
+@media (min-width: 1024px) {
+  .container {
+    flex-direction: row;
+    height: 100vh;
+  }
+  
+  .loadingContainer {
+    padding: 24px;
+  }
+
+  .mobileMenuButton {
+    display: none;
+  }
+
+  .sidebarContainer {
+    position: relative;
+    transform: none;
+  }
+
+  .membersSidebarContainer {
+    display: block;
   }
 }

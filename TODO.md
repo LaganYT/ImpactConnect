@@ -7,3 +7,5 @@
 
 ## Bug fixes
 
+
+**You are working on the mobile redesign, it looks okay but it isn't finished, this is a mobile redesign branch**
