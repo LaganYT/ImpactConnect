@@ -5,4 +5,5 @@
 - Add LTunes support
 
 ## Bug fixes
-- Fix it so when you upload a pfp it updates the avatar url in supabase
+
+**You are working on the ban system, test it and make improvements**

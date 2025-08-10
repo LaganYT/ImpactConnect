@@ -14,6 +14,7 @@ import { ChatSession, Room } from "@/lib/types";
 import { emailToUsername } from "@/lib/usernames";
 import styles from "./ChatLayout.module.css";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 interface ChatLayoutProps {
   user: User;
@@ -34,6 +35,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
   const [loadingAction, setLoadingAction] = useState(false);
   const supabase = createClient();
   const toast = useToastContext();
+  const searchParams = useSearchParams();
 
   // Track window focus/visibility to avoid noisy notifications
   const [isWindowFocused, setIsWindowFocused] = useState(true);
@@ -55,6 +57,18 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
       if (typeof cleanup === "function") cleanup();
     };
   }, []);
+
+  // Handle ban error from URL parameter
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (error === "banned") {
+      toast.error("You are banned from this room and cannot rejoin.");
+      // Remove the error parameter from URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("error");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [searchParams, toast]);
 
   // Keep refs in sync
   useEffect(() => {

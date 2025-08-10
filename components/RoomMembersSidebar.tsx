@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase";
 import { emailToUsername } from "@/lib/usernames";
 import styles from "./RoomMembersSidebar.module.css";
 import NicknameModal from "./NicknameModal";
+import AdminContextMenu from "./AdminContextMenu";
+import BannedUsersModal from "./BannedUsersModal";
 
 interface RoomMembersSidebarProps {
   user: User;
@@ -44,6 +46,12 @@ export default function RoomMembersSidebar({
     open: boolean;
     targetUser: MemberRow | null;
   }>({ open: false, targetUser: null });
+  const [contextMenu, setContextMenu] = useState<{
+    open: boolean;
+    position: { x: number; y: number };
+    targetUser: MemberRow | null;
+  }>({ open: false, position: { x: 0, y: 0 }, targetUser: null });
+  const [bannedUsersModal, setBannedUsersModal] = useState(false);
   const supabase = createClient();
 
   const roomId = selectedChat?.type === "room" ? selectedChat.id : null;
@@ -210,13 +218,51 @@ export default function RoomMembersSidebar({
     return list;
   }, [members, user, nicknameMap]);
 
+  const currentUserRole = useMemo(() => {
+    return members.find(m => m.user_id === user.id)?.role || "member";
+  }, [members, user.id]);
+
+  const handleContextMenu = (event: React.MouseEvent, member: MemberRow) => {
+    event.preventDefault();
+    
+    // Only show context menu for admins and not for themselves
+    if (currentUserRole !== "admin" || member.user_id === user.id) {
+      return;
+    }
+
+    setContextMenu({
+      open: true,
+      position: { x: event.clientX, y: event.clientY },
+      targetUser: member,
+    });
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({ open: false, position: { x: 0, y: 0 }, targetUser: null });
+  };
+
+  const openBannedUsersModal = () => {
+    setBannedUsersModal(true);
+  };
+
   if (!roomId) return null;
 
   return (
     <aside className={styles.rightbar} aria-label="Room members">
       <div className={styles.header}>
         <h3 className={styles.title}>Members</h3>
-        <span className={styles.count}>{members.length}</span>
+        <div className={styles.headerActions}>
+          <span className={styles.count}>{members.length}</span>
+          {currentUserRole === "admin" && (
+            <button
+              className={styles.bannedUsersButton}
+              onClick={openBannedUsersModal}
+              title="View banned users"
+            >
+              🚫
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -227,7 +273,13 @@ export default function RoomMembersSidebar({
       ) : (
         <div className={styles.membersList}>
           {sortedMembers.map((m) => (
-            <div key={m.user_id} className={styles.memberItem}>
+            <div 
+              key={m.user_id} 
+              className={`${styles.memberItem} ${
+                currentUserRole === "admin" && m.user_id !== user.id ? styles.adminActionable : ""
+              }`}
+              onContextMenu={(e) => handleContextMenu(e, m)}
+            >
               <div className={styles.avatar}>
                 {(() => {
                   const avatarUrl =
@@ -306,6 +358,23 @@ export default function RoomMembersSidebar({
           onSuccess={() => fetchMembers()}
         />
       )}
+
+      <AdminContextMenu
+        isOpen={contextMenu.open}
+        position={contextMenu.position}
+        targetUser={contextMenu.targetUser}
+        currentUser={user}
+        roomId={roomId}
+        onClose={closeContextMenu}
+        onAction={fetchMembers}
+      />
+
+      <BannedUsersModal
+        isOpen={bannedUsersModal}
+        onClose={() => setBannedUsersModal(false)}
+        currentUser={user}
+        roomId={roomId}
+      />
     </aside>
   );
 }

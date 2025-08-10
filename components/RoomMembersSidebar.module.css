@@ -19,6 +19,12 @@
   flex-shrink: 0;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .title {
   margin: 0;
   font-size: 13px;
@@ -29,6 +35,28 @@
 .count {
   font-size: 11px;
   color: var(--color-muted-text);
+}
+
+.bannedUsersButton {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.bannedUsersButton:hover {
+  background: var(--color-hover);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .membersList {
@@ -45,10 +73,15 @@
   padding: 8px 16px;
   /* Touch-friendly sizing */
   min-height: 56px;
+  cursor: default;
 }
 
 .memberItem:hover {
   background: var(--color-hover);
+}
+
+.memberItem.adminActionable {
+  cursor: context-menu;
 }
 
 .avatar {
@@ -210,6 +243,13 @@
 
   .count {
     font-size: 10px;
+  }
+
+  .bannedUsersButton {
+    font-size: 10px;
+    padding: 2px 4px;
+    min-width: 20px;
+    min-height: 20px;
   }
 
   .membersList {

@@ -62,3 +62,14 @@ export interface ChatSession {
   // For DMs, the partner's avatar URL (if available)
   avatarUrl?: string | null;
 }
+
+export interface BannedUser {
+  id: string;
+  room_id: string;
+  user_id: string;
+  banned_by: string;
+  banned_at: string;
+  reason?: string;
+  user?: User;
+  banned_by_user?: User;
+}
