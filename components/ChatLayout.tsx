@@ -1069,7 +1069,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
         <ChatWindow
           user={user}
           selectedChat={selectedChat}
-          onSendMessage={async (content: string) => {
+          onSendMessage={async (content: string, replyToId?: string) => {
             if (!selectedChat) return;
 
             // Check if this is a command
@@ -1165,6 +1165,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
                 null,
               sender_email: user.email || null,
               sender_username: senderUsername,
+              reply_to_id: replyToId || null,
               [selectedChat.type === "dm" ? "direct_message_id" : "room_id"]:
                 selectedChat.id,
             });

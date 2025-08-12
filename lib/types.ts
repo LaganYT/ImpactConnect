@@ -45,6 +45,8 @@ export interface Message {
   direct_message_id?: string;
   room_id?: string;
   sender?: User;
+  reply_to_id?: string;
+  reply_to_message?: Message;
   // list of user ids who have read the message (optional; may be fetched separately)
   read_by_user_ids?: string[];
 }

@@ -74,10 +74,12 @@ create table public.messages (
   sender_name text null,
   sender_email text null,
   sender_username text null,
+  reply_to_id uuid null,
   constraint messages_pkey primary key (id),
   constraint messages_direct_message_id_fkey foreign KEY (direct_message_id) references direct_messages (id) on delete CASCADE,
   constraint messages_room_id_fkey foreign KEY (room_id) references rooms (id) on delete CASCADE,
   constraint messages_sender_id_fkey foreign KEY (sender_id) references users (id) on delete CASCADE,
+  constraint messages_reply_to_id_fkey foreign KEY (reply_to_id) references messages (id) on delete SET NULL,
   constraint messages_check check (
     (
       (

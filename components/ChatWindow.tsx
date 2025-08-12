@@ -31,7 +31,7 @@ const EmojiPicker = dynamic(
 interface ChatWindowProps {
   user: User;
   selectedChat: ChatSession | null;
-  onSendMessage: (content: string) => Promise<void>;
+  onSendMessage: (content: string, replyToId?: string) => Promise<void>;
 }
 
 export default function ChatWindow({
@@ -130,6 +130,16 @@ export default function ChatWindow({
   // Mobile menu state
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement | null>(null);
+  
+  // Reply state
+  const [replyingTo, setReplyingTo] = useState<UIMessage | null>(null);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  
+  // Swipe gesture state
+  const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
+  const [swipeStartY, setSwipeStartY] = useState<number | null>(null);
+  const [swipeDistance, setSwipeDistance] = useState<number>(0);
+  const [swipingMessageId, setSwipingMessageId] = useState<string | null>(null);
 
   function PollCreator({
     userId,
@@ -680,14 +690,39 @@ export default function ChatWindow({
 
       if (error) throw error;
       const msgs = (data || []) as UIMessage[];
+      
+      // Fetch reply data for messages that have reply_to_id
+      const messagesWithReplies = await Promise.all(
+        msgs.map(async (msg) => {
+          if (msg.reply_to_id) {
+            try {
+              const { data: replyData } = await supabase
+                .from("messages")
+                .select("id, content, sender_id, sender_name, sender_email, sender_username, created_at, updated_at")
+                .eq("id", msg.reply_to_id)
+                .maybeSingle();
+              
+              return {
+                ...msg,
+                reply_to_message: replyData || undefined,
+              };
+            } catch (replyError) {
+              console.warn("Failed to fetch reply data for message:", msg.id, replyError);
+              return msg;
+            }
+          }
+          return msg;
+        })
+      );
+      
       const map: Record<string, string[]> = {};
-      msgs.forEach((m) => {
+      messagesWithReplies.forEach((m) => {
         map[m.id] = (m.reads || []).map((r: { user_id: string }) => r.user_id);
       });
       setReadByMap(map);
       // Normalize sender object to expected shape (defensive)
       setMessages(
-        msgs.map((m) => ({
+        messagesWithReplies.map((m) => ({
           ...m,
           sender: m.sender
             ? {
@@ -705,6 +740,7 @@ export default function ChatWindow({
         "Error fetching messages:",
         error instanceof Error ? error.message : error,
       );
+      console.error("Full error object:", error);
     } finally {
       setLoading(false);
     }
@@ -728,27 +764,34 @@ export default function ChatWindow({
         },
         async (payload) => {
           const newMessage = payload.new as UIMessage;
-          // Hydrate sender profile for avatar/labels
+          // Hydrate sender profile and reply_to_message for avatar/labels
           try {
-            const { data: profile } = await supabase
-              .from("users")
-              .select("id, avatar_url, full_name, email, username")
-              .eq("id", newMessage.sender_id)
-              .maybeSingle();
-            if (profile) {
-              const hydrated: UIMessage = {
-                ...newMessage,
-                sender: {
-                  id: profile.id,
-                  avatar_url: profile.avatar_url ?? null,
-                  full_name: profile.full_name ?? null,
-                  email: profile.email ?? null,
-                  username: profile.username ?? null,
-                },
-              };
-              setMessages((prev) => [...prev, hydrated]);
-              return;
-            }
+            const [profileResult, replyResult] = await Promise.all([
+              supabase
+                .from("users")
+                .select("id, avatar_url, full_name, email, username")
+                .eq("id", newMessage.sender_id)
+                .maybeSingle(),
+              newMessage.reply_to_id ? supabase
+                .from("messages")
+                .select("id, content, sender_id, sender_name, sender_email, sender_username, created_at, updated_at")
+                .eq("id", newMessage.reply_to_id)
+                .maybeSingle() : Promise.resolve({ data: null })
+            ]);
+            
+            const hydrated: UIMessage = {
+              ...newMessage,
+              sender: profileResult.data ? {
+                id: profileResult.data.id,
+                avatar_url: profileResult.data.avatar_url ?? null,
+                full_name: profileResult.data.full_name ?? null,
+                email: profileResult.data.email ?? null,
+                username: profileResult.data.username ?? null,
+              } : undefined,
+              reply_to_message: replyResult.data || undefined,
+            };
+            setMessages((prev) => [...prev, hydrated]);
+            return;
           } catch {}
           setMessages((prev) => [...prev, newMessage]);
         },
@@ -773,6 +816,7 @@ export default function ChatWindow({
                     ...m,
                     content: updated.content,
                     updated_at: updated.updated_at,
+                    reply_to_id: updated.reply_to_id,
                   }
                 : m,
             ),
@@ -987,9 +1031,10 @@ export default function ChatWindow({
     if (!newMessage.trim() || !selectedChat) return;
     setSending(true);
     try {
-      await onSendMessage(newMessage.trim());
+      await onSendMessage(newMessage.trim(), replyingTo?.id);
       stopTyping();
       setNewMessage("");
+      setReplyingTo(null); // Clear reply state after sending
       // reset textarea height after send
       if (messageInputRef.current) {
         messageInputRef.current.style.height = "auto";
@@ -1185,6 +1230,13 @@ export default function ChatWindow({
       if (ev.key === "Escape") {
         setContextMenu(null);
         setEditingId(null);
+        setReplyingTo(null);
+      } else if (ev.key === "r" && ev.shiftKey && selectedMessageId) {
+        ev.preventDefault();
+        const message = messages.find(m => m.id === selectedMessageId);
+        if (message) {
+          startReply(message);
+        }
       }
     };
     window.addEventListener("click", onGlobalClick);
@@ -1193,7 +1245,7 @@ export default function ChatWindow({
       window.removeEventListener("click", onGlobalClick);
       window.removeEventListener("keydown", onKey);
     };
-  }, []);
+  }, [selectedMessageId, messages]);
 
   const beginEdit = (id: string) => {
     const msg = messages.find((m) => m.id === id);
@@ -1230,6 +1282,69 @@ export default function ChatWindow({
 
   const cancelEdit = () => {
     setEditingId(null);
+  };
+
+  const startReply = (message: UIMessage) => {
+    console.log('Starting reply to message:', message.id, message.content);
+    setReplyingTo(message);
+    setContextMenu(null);
+    // Focus the message input
+    if (messageInputRef.current) {
+      messageInputRef.current.focus();
+    }
+  };
+
+  const cancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  // Swipe gesture handlers
+  const handleTouchStart = (e: React.TouchEvent, messageId: string) => {
+    const touch = e.touches[0];
+    setSwipeStartX(touch.clientX);
+    setSwipeStartY(touch.clientY);
+    setSwipingMessageId(messageId);
+    setSwipeDistance(0);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (swipeStartX === null || swipeStartY === null) return;
+    
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - swipeStartX;
+    const deltaY = Math.abs(touch.clientY - swipeStartY);
+    
+    // Only allow horizontal swipes (prevent vertical scrolling interference)
+    if (deltaY < 50 && deltaX > 0) {
+      e.preventDefault();
+      const distance = Math.min(deltaX, 100); // Max swipe distance
+      setSwipeDistance(distance);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (swipeStartX === null || swipingMessageId === null) return;
+    
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - swipeStartX;
+    
+    // If swiped right more than 50px, trigger reply
+    if (deltaX > 50) {
+      console.log('Swipe detected, deltaX:', deltaX, 'messageId:', swipingMessageId);
+      const message = messages.find(m => m.id === swipingMessageId);
+      if (message) {
+        console.log('Found message, starting reply');
+        startReply(message);
+      } else {
+        console.log('Message not found for ID:', swipingMessageId);
+      }
+    }
+    
+    // Reset swipe state
+    setSwipeStartX(null);
+    setSwipeStartY(null);
+    setSwipingMessageId(null);
+    setSwipeDistance(0);
   };
 
   const handleDeleteMessage = async (id: string) => {
@@ -1438,13 +1553,32 @@ export default function ChatWindow({
             {messages.map((message) => {
               const isOwn = message.sender_id === user.id;
               return (
-                <div
-                  key={message.id}
-                  className={`${styles.message} ${isOwn ? styles.ownMessage : ""} ${
-                    isBotMessage(message) ? styles.botMessage : ""
-                  }`}
-                  onContextMenu={(e) => openContextMenu(e, message.id)}
-                >
+                <div key={message.id} className={styles.messageContainer}>
+                  {/* Swipe indicator */}
+                  {swipingMessageId === message.id && (
+                    <div className={styles.swipeIndicator}>
+                      <div className={styles.swipeIcon}>↩️</div>
+                      <div className={styles.swipeText}>Reply</div>
+                    </div>
+                  )}
+                  
+                  <div
+                    data-message-id={message.id}
+                    className={`${styles.message} ${isOwn ? styles.ownMessage : ""} ${
+                      isBotMessage(message) ? styles.botMessage : ""
+                    } ${selectedMessageId === message.id ? styles.selectedMessage : ""} ${
+                      swipingMessageId === message.id ? styles.swipingMessage : ""
+                    }`}
+                    onContextMenu={(e) => openContextMenu(e, message.id)}
+                    onClick={() => setSelectedMessageId(message.id)}
+                    onTouchStart={(e) => handleTouchStart(e, message.id)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    style={{
+                      transform: swipingMessageId === message.id ? `translateX(${swipeDistance}px)` : 'translateX(0)',
+                      transition: swipingMessageId === message.id ? 'none' : 'transform 0.2s ease'
+                    }}
+                  >
                   <div className={styles.messageRow}>
                     {!isOwn && (
                       <div className={styles.avatar} aria-hidden>
@@ -1511,6 +1645,49 @@ export default function ChatWindow({
                           return isOwn ? "You" : "Unknown";
                         })()}
                       </div>
+                      
+                      {/* Reply Display */}
+                      {message.reply_to_message && (
+                        <div 
+                          className={styles.replyDisplay}
+                          onClick={() => {
+                            // Find the original message element and scroll to it
+                            const originalMessageElement = document.querySelector(`[data-message-id="${message.reply_to_id}"]`);
+                            if (originalMessageElement) {
+                              originalMessageElement.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'center' 
+                              });
+                              // Highlight the original message briefly
+                              originalMessageElement.classList.add(styles.highlightedMessage);
+                              setTimeout(() => {
+                                originalMessageElement.classList.remove(styles.highlightedMessage);
+                              }, 2000);
+                            }
+                          }}
+                          style={{ cursor: 'pointer' }}
+                          title="Click to view original message"
+                        >
+                          <div className={styles.replyDisplayContent}>
+                            <div className={styles.replyDisplaySender}>
+                              {(() => {
+                                const replyIsOwn = message.reply_to_message.sender_id === user.id;
+                                if (replyIsOwn) return "You";
+                                const nick = nicknameMap[message.reply_to_message.sender_id];
+                                if (nick) return nick;
+                                return message.reply_to_message.sender_username || message.reply_to_message.sender_name || "Unknown";
+                              })()}
+                            </div>
+                            <div className={styles.replyDisplayMessage}>
+                              {isDeletedMessage(message.reply_to_message) 
+                                ? "[Deleted Message]" 
+                                : message.reply_to_message.content.length > 30 
+                                  ? message.reply_to_message.content.substring(0, 30) + "..." 
+                                  : message.reply_to_message.content}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {(() => {
                         if (isDeletedMessage(message)) {
                           return (
@@ -1889,12 +2066,48 @@ export default function ChatWindow({
                     )}
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
             <div ref={messagesEndRef} />
           </div>
         )}
       </div>
+
+      {/* Reply Indicator - Moved above message form for mobile */}
+      {replyingTo && (
+        <div className={styles.replyIndicator}>
+          <div className={styles.replyIndicatorContent}>
+            <div className={styles.replyIndicatorText}>
+              Replying to{" "}
+              <span className={styles.replyIndicatorSender}>
+                {(() => {
+                  const isOwn = replyingTo.sender_id === user.id;
+                  if (isOwn) return "yourself";
+                  const nick = nicknameMap[replyingTo.sender_id];
+                  if (nick) return nick;
+                  return replyingTo.sender_username || replyingTo.sender_name || "Unknown";
+                })()}
+              </span>
+            </div>
+            <div className={styles.replyIndicatorMessage}>
+              {replyingTo.content.length > 50 
+                ? replyingTo.content.substring(0, 50) + "..." 
+                : replyingTo.content}
+            </div>
+          </div>
+          <button
+            type="button"
+            className={styles.replyIndicatorClose}
+            onClick={cancelReply}
+            aria-label="Cancel reply"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
+      )}
 
       <form onSubmit={handleSendMessage} className={styles.messageForm}>
         {typingOthers.length > 0 && (
@@ -2137,6 +2350,8 @@ export default function ChatWindow({
             </div>
           )}
 
+
+
           <textarea
             ref={messageInputRef}
             rows={1}
@@ -2178,7 +2393,7 @@ export default function ChatWindow({
             onBlur={() => {
               stopTyping();
             }}
-            placeholder="Type a message... (try /help for commands)"
+            placeholder="Type a message..."
             className={styles.messageInput}
             disabled={sending}
             style={{ overflow: "hidden" }}
@@ -2253,6 +2468,12 @@ export default function ChatWindow({
               onClick: () => void;
               show: boolean;
             }> = [
+              {
+                key: "reply",
+                label: "Reply",
+                onClick: () => startReply(msg),
+                show: !isDeletedMessage(msg),
+              },
               {
                 key: "edit",
                 label: "Edit",
