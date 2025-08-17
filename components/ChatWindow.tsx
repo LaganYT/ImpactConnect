@@ -1187,7 +1187,33 @@ export default function ChatWindow({
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const now = new Date();
+    
+    // Check if the message is from today
+    const isToday = date.toDateString() === now.toDateString();
+    
+    if (isToday) {
+      // Show only time for today's messages
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } else {
+      // Show date and time for older messages
+      const day = date.getDate();
+      const month = date.toLocaleDateString([], { month: "long" });
+      const year = date.getFullYear();
+      
+      // Add ordinal suffix to day
+      const getOrdinalSuffix = (day: number) => {
+        if (day > 3 && day < 21) return "th";
+        switch (day % 10) {
+          case 1: return "st";
+          case 2: return "nd";
+          case 3: return "rd";
+          default: return "th";
+        }
+      };
+      
+      return `${month} ${day}${getOrdinalSuffix(day)}, ${year} - ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    }
   };
 
   const isDeletedMessage = (m: UIMessage): boolean =>
