@@ -13,6 +13,7 @@ import { emailToUsername } from "@/lib/usernames";
 import { useToastContext } from "./ToastProvider";
 import ConfirmModal from "./ConfirmModal";
 import InputModal from "./InputModal";
+import ImageModal from "./ImageModal";
 import styles from "./ChatWindow.module.css";
 import PollCard from "./PollCard";
 import Modal from "./Modal";
@@ -140,6 +141,17 @@ export default function ChatWindow({
   const [swipeStartY, setSwipeStartY] = useState<number | null>(null);
   const [swipeDistance, setSwipeDistance] = useState<number>(0);
   const [swipingMessageId, setSwipingMessageId] = useState<string | null>(null);
+  
+  // Image modal state
+  const [imageModal, setImageModal] = useState<{
+    open: boolean;
+    src: string;
+    alt: string;
+  }>({
+    open: false,
+    src: "",
+    alt: "",
+  });
 
   function PollCreator({
     userId,
@@ -267,6 +279,23 @@ export default function ChatWindow({
       </Modal>
     );
   }
+
+  // Image modal functions
+  const openImageModal = (src: string, alt: string = "Image") => {
+    setImageModal({
+      open: true,
+      src,
+      alt,
+    });
+  };
+
+  const closeImageModal = () => {
+    setImageModal({
+      open: false,
+      src: "",
+      alt: "",
+    });
+  };
 
   // Minimal response types for Tenor and Giphy APIs
   type TenorMediaVariant = { url?: string };
@@ -1819,6 +1848,16 @@ export default function ChatWindow({
                                       style={{
                                         maxWidth: 320,
                                         borderRadius: 12,
+                                        cursor: "pointer",
+                                      }}
+                                      onClick={() => {
+                                        const src = (props as React.ImgHTMLAttributes<HTMLImageElement>).src;
+                                        const alt = (props as React.ImgHTMLAttributes<HTMLImageElement>).alt || "";
+                                        if (src) {
+                                          if (typeof src === "string" && src) {
+                                          openImageModal(src, alt);
+                                          }
+                                        }
                                       }}
                                     />
                                   ),
@@ -1839,7 +1878,12 @@ export default function ChatWindow({
                             <img
                               src={content}
                               alt="Shared image"
-                              style={{ maxWidth: "320px", borderRadius: 12 }}
+                              style={{ 
+                                maxWidth: "320px", 
+                                borderRadius: 12,
+                                cursor: "pointer"
+                              }}
+                              onClick={() => openImageModal(content, "Shared image")}
                             />
                           );
                         }
@@ -2562,6 +2606,14 @@ export default function ChatWindow({
           setShowInviteInput(false);
         }}
         onCancel={() => setShowInviteInput(false)}
+      />
+
+      {/* Image Modal */}
+      <ImageModal
+        open={imageModal.open}
+        imageSrc={imageModal.src}
+        imageAlt={imageModal.alt}
+        onClose={closeImageModal}
       />
     </div>
   );
