@@ -37,7 +37,6 @@ create table public.direct_messages (
 -- Create rooms table
 create table public.rooms (
   id uuid not null default gen_random_uuid (),
-  owner_id uuid generated always as (created_by) stored;
   name text not null,
   description text null,
   created_by uuid not null,

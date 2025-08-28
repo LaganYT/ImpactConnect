@@ -676,7 +676,7 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
         .insert({
           name: newRoomName.trim(),
           description: newRoomDescription.trim() || null,
-          owner_id: user.id,
+          created_by: user.id,
         })
         .select()
         .single();
