@@ -671,18 +671,14 @@ export default function ChatLayout({ user, selectedChatId }: ChatLayoutProps) {
     setLoadingAction(true);
 
     try {
-      const { error: roomError } = await supabase
-        .from("rooms")
-        .insert({
-          name: newRoomName.trim(),
-          description: newRoomDescription.trim() || null,
-          created_by: user.id,
-        })
-        .select()
-        .single();
+      const { error: rpcError } = await supabase.rpc("create_room_with_owner", {
+        p_name: newRoomName.trim(),
+        p_description: newRoomDescription.trim() || null,
+        p_is_private: true,
+      });
 
-      if (roomError) {
-        console.error("Error creating room:", roomError);
+      if (rpcError) {
+        console.error("Error creating room:", rpcError);
         toast.error("Failed to create room");
         return;
       }
