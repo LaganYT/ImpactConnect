@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -21,7 +21,7 @@ import Modal from "./Modal";
 // Lazy-load emoji picker on the client
 const EmojiPicker = dynamic(
   () => import("emoji-picker-react").then((mod) => mod.default),
-  { ssr: false },
+  { ssr: false }
 ) as unknown as React.ComponentType<{
   onEmojiClick: (emojiData: { emoji: string }) => void;
   width?: number | string;
@@ -91,25 +91,47 @@ export default function ChatWindow({
   const [gifResults, setGifResults] = useState<
     Array<{ id: string; url: string; preview: string }>
   >([]);
-  
+
   // Command suggestions state
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
-  const [filteredCommands, setFilteredCommands] = useState<Array<{ command: string; description: string; icon: string }>>([]);
-  
+  const [filteredCommands, setFilteredCommands] = useState<
+    Array<{ command: string; description: string; icon: string }>
+  >([]);
+
   // Command definitions
   const COMMANDS = [
-    { command: '/help', description: 'Show available commands', icon: '❓' },
-    { command: '/roll', description: 'Roll a dice (e.g., /roll 20 for d20)', icon: '🎲' },
-    { command: '/flip', description: 'Flip a coin', icon: '🪙' },
-    { command: '/8ball', description: 'Ask the magic 8-ball a question', icon: '🎱' },
-    { command: '/joke', description: 'Tell a random joke', icon: '😄' },
-    { command: '/weather', description: 'Get a random weather forecast', icon: '🌤️' },
-    { command: '/fortune', description: 'Get your fortune for today', icon: '🔮' },
-    { command: '/rps', description: 'Play rock, paper, scissors', icon: '✂️' },
-    { command: '/quote', description: 'Get an inspirational quote', icon: '💭' }
+    { command: "/help", description: "Show available commands", icon: "❓" },
+    {
+      command: "/roll",
+      description: "Roll a dice (e.g., /roll 20 for d20)",
+      icon: "🎲",
+    },
+    { command: "/flip", description: "Flip a coin", icon: "🪙" },
+    {
+      command: "/8ball",
+      description: "Ask the magic 8-ball a question",
+      icon: "🎱",
+    },
+    { command: "/joke", description: "Tell a random joke", icon: "😄" },
+    {
+      command: "/weather",
+      description: "Get a random weather forecast",
+      icon: "🌤️",
+    },
+    {
+      command: "/fortune",
+      description: "Get your fortune for today",
+      icon: "🔮",
+    },
+    { command: "/rps", description: "Play rock, paper, scissors", icon: "✂️" },
+    {
+      command: "/quote",
+      description: "Get an inspirational quote",
+      icon: "💭",
+    },
   ];
-  
+
   type UrlPreview = {
     ok?: boolean;
     url: string;
@@ -120,7 +142,9 @@ export default function ChatWindow({
     favicon?: string | null;
     contentType?: string | null;
   };
-  const [linkPreviews, setLinkPreviews] = useState<Record<string, UrlPreview | "loading" | "error">>({});
+  const [linkPreviews, setLinkPreviews] = useState<
+    Record<string, UrlPreview | "loading" | "error">
+  >({});
   type GifProvider = "tenor" | "giphy" | null;
   const tenorKey =
     (process.env.NEXT_PUBLIC_TENOR_KEY as string | undefined) || undefined;
@@ -131,17 +155,19 @@ export default function ChatWindow({
   // Mobile menu state
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement | null>(null);
-  
+
   // Reply state
   const [replyingTo, setReplyingTo] = useState<UIMessage | null>(null);
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
+    null
+  );
+
   // Swipe gesture state
   const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
   const [swipeStartY, setSwipeStartY] = useState<number | null>(null);
   const [swipeDistance, setSwipeDistance] = useState<number>(0);
   const [swipingMessageId, setSwipingMessageId] = useState<string | null>(null);
-  
+
   // Image modal state
   const [imageModal, setImageModal] = useState<{
     open: boolean;
@@ -178,7 +204,8 @@ export default function ChatWindow({
       setOptions((prev) => prev.map((v, i) => (i === idx ? value : v)));
     };
 
-    const canSave = question.trim().length > 0 && options.filter((o) => o.trim()).length >= 2;
+    const canSave =
+      question.trim().length > 0 && options.filter((o) => o.trim()).length >= 2;
 
     const createPoll = async () => {
       if (!canSave) return;
@@ -199,13 +226,17 @@ export default function ChatWindow({
         const poll = {
           type: "poll" as const,
           question: question.trim(),
-          options: options.map((o) => o.trim()).filter(Boolean).slice(0, 10),
+          options: options
+            .map((o) => o.trim())
+            .filter(Boolean)
+            .slice(0, 10),
           ...(expires_at ? { expires_at } : {}),
         };
         const payload = {
           content: JSON.stringify(poll),
           sender_id: userId,
-          sender_name: (user.user_metadata as { full_name?: string })?.full_name || null,
+          sender_name:
+            (user.user_metadata as { full_name?: string })?.full_name || null,
           sender_email: user.email || null,
           sender_username: emailToUsername(user.email) || null,
           [chat.type === "dm" ? "direct_message_id" : "room_id"]: chat.id,
@@ -225,53 +256,95 @@ export default function ChatWindow({
       <Modal open title="Create poll" onClose={onClose}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <label>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Question</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
+              Question
+            </div>
             <input
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="What's your question?"
-              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--color-border)" }}
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 8,
+                border: "1px solid var(--color-border)",
+              }}
             />
           </label>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Options</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
+              Options
+            </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {options.map((opt, idx) => (
-                <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div
+                  key={idx}
+                  style={{ display: "flex", gap: 8, alignItems: "center" }}
+                >
                   <input
                     value={opt}
                     onChange={(e) => updateOption(idx, e.target.value)}
                     placeholder={`Option ${idx + 1}`}
-                    style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid var(--color-border)" }}
+                    style={{
+                      flex: 1,
+                      padding: 10,
+                      borderRadius: 8,
+                      border: "1px solid var(--color-border)",
+                    }}
                   />
                   {options.length > 2 && (
-                    <button type="button" onClick={() => removeOption(idx)} className={styles.editCancel}>
+                    <button
+                      type="button"
+                      onClick={() => removeOption(idx)}
+                      className={styles.editCancel}
+                    >
                       Remove
                     </button>
                   )}
                 </div>
               ))}
               <div>
-                <button type="button" onClick={addOption} className={styles.inviteButton} disabled={options.length >= 10}>
+                <button
+                  type="button"
+                  onClick={addOption}
+                  className={styles.inviteButton}
+                  disabled={options.length >= 10}
+                >
                   Add option
                 </button>
               </div>
             </div>
           </div>
           <label>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Expiration (optional)</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
+              Expiration (optional)
+            </div>
             <input
               type="datetime-local"
               value={expiresAtLocal}
               onChange={(e) => setExpiresAtLocal(e.target.value)}
-              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--color-border)" }}
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 8,
+                border: "1px solid var(--color-border)",
+              }}
             />
           </label>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button type="button" onClick={onClose} className={styles.editCancel}>
+            <button
+              type="button"
+              onClick={onClose}
+              className={styles.editCancel}
+            >
               Cancel
             </button>
-            <button type="button" onClick={createPoll} className={styles.editSave} disabled={!canSave || saving}>
+            <button
+              type="button"
+              onClick={createPoll}
+              className={styles.editSave}
+              disabled={!canSave || saving}
+            >
               {saving ? "Creating..." : "Create"}
             </button>
           </div>
@@ -318,6 +391,10 @@ export default function ChatWindow({
   const typingChannelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<number | null>(null);
   const isTypingRef = useRef<boolean>(false);
+
+  // Debounced typing state for mobile performance
+  const typingDebounceRef = useRef<number | null>(null);
+  const lastTypingTimeRef = useRef<number>(0);
 
   // Track focus/visibility to control when reads are recorded
   useEffect(() => {
@@ -447,7 +524,7 @@ export default function ChatWindow({
           media_filter: "gif",
         });
         const res = await fetch(
-          `https://tenor.googleapis.com/v2/featured?${params.toString()}`,
+          `https://tenor.googleapis.com/v2/featured?${params.toString()}`
         );
         const json = (await res
           .json()
@@ -477,7 +554,7 @@ export default function ChatWindow({
           rating: "pg",
         });
         const res = await fetch(
-          `https://api.giphy.com/v1/gifs/trending?${params.toString()}`,
+          `https://api.giphy.com/v1/gifs/trending?${params.toString()}`
         );
         const json = (await res
           .json()
@@ -526,7 +603,7 @@ export default function ChatWindow({
           media_filter: "gif",
         });
         const res = await fetch(
-          `https://tenor.googleapis.com/v2/search?${params.toString()}`,
+          `https://tenor.googleapis.com/v2/search?${params.toString()}`
         );
         const json = (await res
           .json()
@@ -557,7 +634,7 @@ export default function ChatWindow({
           rating: "pg",
         });
         const res = await fetch(
-          `https://api.giphy.com/v1/gifs/search?${params.toString()}`,
+          `https://api.giphy.com/v1/gifs/search?${params.toString()}`
         );
         const json = (await res
           .json()
@@ -604,7 +681,7 @@ export default function ChatWindow({
           .eq("user_id", user.id)
           .maybeSingle();
         setIsRoomAdmin(
-          (data?.role as "admin" | "member" | undefined) === "admin",
+          (data?.role as "admin" | "member" | undefined) === "admin"
         );
       } catch {
         setIsRoomAdmin(false);
@@ -648,7 +725,7 @@ export default function ChatWindow({
     const container = messagesContainerRef.current;
     if (!container) return;
     const images: HTMLImageElement[] = Array.from(
-      container.querySelectorAll("img"),
+      container.querySelectorAll("img")
     );
     if (images.length === 0) return;
     const onLoad = () => scrollToBottom(false);
@@ -687,11 +764,12 @@ export default function ChatWindow({
 
   // Handle command suggestions
   useEffect(() => {
-    if (newMessage.startsWith('/')) {
+    if (newMessage.startsWith("/")) {
       const query = newMessage.slice(1).toLowerCase();
-      const filtered = COMMANDS.filter(cmd => 
-        cmd.command.toLowerCase().includes(query) || 
-        cmd.description.toLowerCase().includes(query)
+      const filtered = COMMANDS.filter(
+        (cmd) =>
+          cmd.command.toLowerCase().includes(query) ||
+          cmd.description.toLowerCase().includes(query)
       );
       setFilteredCommands(filtered);
       setShowCommandSuggestions(filtered.length > 0);
@@ -709,17 +787,17 @@ export default function ChatWindow({
       const { data, error } = await supabase
         .from("messages")
         .select(
-          `*, reads:message_reads(user_id), sender:users!messages_sender_id_fkey(id, avatar_url, full_name, email, username)`,
+          `*, reads:message_reads(user_id), sender:users!messages_sender_id_fkey(id, avatar_url, full_name, email, username)`
         )
         .eq(
           selectedChat.type === "dm" ? "direct_message_id" : "room_id",
-          selectedChat.id,
+          selectedChat.id
         )
         .order("created_at", { ascending: true });
 
       if (error) throw error;
       const msgs = (data || []) as UIMessage[];
-      
+
       // Fetch reply data for messages that have reply_to_id
       const messagesWithReplies = await Promise.all(
         msgs.map(async (msg) => {
@@ -727,23 +805,29 @@ export default function ChatWindow({
             try {
               const { data: replyData } = await supabase
                 .from("messages")
-                .select("id, content, sender_id, sender_name, sender_email, sender_username, created_at, updated_at")
+                .select(
+                  "id, content, sender_id, sender_name, sender_email, sender_username, created_at, updated_at"
+                )
                 .eq("id", msg.reply_to_id)
                 .maybeSingle();
-              
+
               return {
                 ...msg,
                 reply_to_message: replyData || undefined,
               };
             } catch (replyError) {
-              console.warn("Failed to fetch reply data for message:", msg.id, replyError);
+              console.warn(
+                "Failed to fetch reply data for message:",
+                msg.id,
+                replyError
+              );
               return msg;
             }
           }
           return msg;
         })
       );
-      
+
       const map: Record<string, string[]> = {};
       messagesWithReplies.forEach((m) => {
         map[m.id] = (m.reads || []).map((r: { user_id: string }) => r.user_id);
@@ -762,12 +846,12 @@ export default function ChatWindow({
                 username: m.sender.username ?? null,
               }
             : undefined,
-        })),
+        }))
       );
     } catch (error) {
       console.error(
         "Error fetching messages:",
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
       console.error("Full error object:", error);
     } finally {
@@ -801,29 +885,35 @@ export default function ChatWindow({
                 .select("id, avatar_url, full_name, email, username")
                 .eq("id", newMessage.sender_id)
                 .maybeSingle(),
-              newMessage.reply_to_id ? supabase
-                .from("messages")
-                .select("id, content, sender_id, sender_name, sender_email, sender_username, created_at, updated_at")
-                .eq("id", newMessage.reply_to_id)
-                .maybeSingle() : Promise.resolve({ data: null })
+              newMessage.reply_to_id
+                ? supabase
+                    .from("messages")
+                    .select(
+                      "id, content, sender_id, sender_name, sender_email, sender_username, created_at, updated_at"
+                    )
+                    .eq("id", newMessage.reply_to_id)
+                    .maybeSingle()
+                : Promise.resolve({ data: null }),
             ]);
-            
+
             const hydrated: UIMessage = {
               ...newMessage,
-              sender: profileResult.data ? {
-                id: profileResult.data.id,
-                avatar_url: profileResult.data.avatar_url ?? null,
-                full_name: profileResult.data.full_name ?? null,
-                email: profileResult.data.email ?? null,
-                username: profileResult.data.username ?? null,
-              } : undefined,
+              sender: profileResult.data
+                ? {
+                    id: profileResult.data.id,
+                    avatar_url: profileResult.data.avatar_url ?? null,
+                    full_name: profileResult.data.full_name ?? null,
+                    email: profileResult.data.email ?? null,
+                    username: profileResult.data.username ?? null,
+                  }
+                : undefined,
               reply_to_message: replyResult.data || undefined,
             };
             setMessages((prev) => [...prev, hydrated]);
             return;
           } catch {}
           setMessages((prev) => [...prev, newMessage]);
-        },
+        }
       )
       .on(
         "postgres_changes",
@@ -847,10 +937,10 @@ export default function ChatWindow({
                     updated_at: updated.updated_at,
                     reply_to_id: updated.reply_to_id,
                   }
-                : m,
-            ),
+                : m
+            )
           );
-        },
+        }
       )
       .on(
         "postgres_changes",
@@ -871,7 +961,7 @@ export default function ChatWindow({
             delete copy[oldRow.id];
             return copy;
           });
-        },
+        }
       )
       .subscribe();
 
@@ -902,7 +992,7 @@ export default function ChatWindow({
             if (current.includes(user_id)) return prev;
             return { ...prev, [message_id]: [...current, user_id] };
           });
-        },
+        }
       )
       .subscribe();
 
@@ -921,9 +1011,11 @@ export default function ChatWindow({
           .select("target_user_id, nickname")
           .eq("owner_user_id", user.id);
         const map: Record<string, string> = {};
-        (data || []).forEach((r: { target_user_id: string; nickname: string }) => {
-          map[r.target_user_id] = r.nickname;
-        });
+        (data || []).forEach(
+          (r: { target_user_id: string; nickname: string }) => {
+            map[r.target_user_id] = r.nickname;
+          }
+        );
         setNicknameMap(map);
       } catch {
         setNicknameMap({});
@@ -940,7 +1032,7 @@ export default function ChatWindow({
           table: "user_nicknames",
           filter: `owner_user_id=eq.${user.id}`,
         },
-        () => void load(),
+        () => void load()
       )
       .subscribe();
     return () => {
@@ -1010,6 +1102,10 @@ export default function ChatWindow({
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = null;
+      }
+      if (typingDebounceRef.current) {
+        clearTimeout(typingDebounceRef.current);
+        typingDebounceRef.current = null;
       }
       isTypingRef.current = false;
       try {
@@ -1100,12 +1196,34 @@ export default function ChatWindow({
     await sendCurrentMessage();
   };
 
-  const autoResizeTextArea = (el: HTMLTextAreaElement) => {
-    const maxHeight = 120;
-    el.style.height = "auto";
-    const next = Math.min(el.scrollHeight, maxHeight);
-    el.style.height = `${next}px`;
-  };
+  // Optimized autoResizeTextArea with requestAnimationFrame for better performance
+  const autoResizeTextArea = useCallback((el: HTMLTextAreaElement) => {
+    requestAnimationFrame(() => {
+      const maxHeight = 120;
+      el.style.height = "auto";
+      const next = Math.min(el.scrollHeight, maxHeight);
+      el.style.height = `${next}px`;
+    });
+  }, []);
+
+  // Debounced typing function for mobile performance
+  const debouncedStartTyping = useCallback(() => {
+    const now = Date.now();
+    lastTypingTimeRef.current = now;
+
+    // Clear existing debounce
+    if (typingDebounceRef.current) {
+      clearTimeout(typingDebounceRef.current);
+    }
+
+    // Debounce typing indicator to reduce WebSocket traffic
+    typingDebounceRef.current = window.setTimeout(() => {
+      // Only start typing if this is still the most recent typing event
+      if (lastTypingTimeRef.current === now) {
+        startTyping();
+      }
+    }, 300); // 300ms debounce
+  }, []);
 
   const insertEmojiAtCaret = (emoji: string) => {
     const textarea = messageInputRef.current;
@@ -1134,7 +1252,7 @@ export default function ChatWindow({
 
   const uploadToImgbbClient = async (
     file: File,
-    apiKey: string,
+    apiKey: string
   ): Promise<string> => {
     const base64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -1162,7 +1280,7 @@ export default function ChatWindow({
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: body.toString(),
-      },
+      }
     );
     type ImgbbResponse = {
       data?: { display_url?: string; url?: string; image?: { url?: string } };
@@ -1194,7 +1312,7 @@ export default function ChatWindow({
 
       if (!imgbbKey) {
         throw new Error(
-          "Image uploads require imgbb. Missing NEXT_PUBLIC_IMGBB_KEY.",
+          "Image uploads require imgbb. Missing NEXT_PUBLIC_IMGBB_KEY."
         );
       }
       const url = await uploadToImgbbClient(file, imgbbKey);
@@ -1217,31 +1335,43 @@ export default function ChatWindow({
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
-    
+
     // Check if the message is from today
     const isToday = date.toDateString() === now.toDateString();
-    
+
     if (isToday) {
       // Show only time for today's messages
-      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     } else {
       // Show date and time for older messages
       const day = date.getDate();
       const month = date.toLocaleDateString([], { month: "long" });
       const year = date.getFullYear();
-      
+
       // Add ordinal suffix to day
       const getOrdinalSuffix = (day: number) => {
         if (day > 3 && day < 21) return "th";
         switch (day % 10) {
-          case 1: return "st";
-          case 2: return "nd";
-          case 3: return "rd";
-          default: return "th";
+          case 1:
+            return "st";
+          case 2:
+            return "nd";
+          case 3:
+            return "rd";
+          default:
+            return "th";
         }
       };
-      
-      return `${month} ${day}${getOrdinalSuffix(day)}, ${year} - ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+
+      return `${month} ${day}${getOrdinalSuffix(
+        day
+      )}, ${year} - ${date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
     }
   };
 
@@ -1266,7 +1396,10 @@ export default function ChatWindow({
   };
 
   const isBotMessage = (m: UIMessage): boolean => {
-    return m.sender_username === 'bot' || Boolean(m.sender_name && m.sender_name.includes(' - Used a command'));
+    return (
+      m.sender_username === "bot" ||
+      Boolean(m.sender_name && m.sender_name.includes(" - Used a command"))
+    );
   };
   const canDeleteMessage = (message: UIMessage) => {
     if (message.sender_id === user.id) return true;
@@ -1288,7 +1421,7 @@ export default function ChatWindow({
         setReplyingTo(null);
       } else if (ev.key === "r" && ev.shiftKey && selectedMessageId) {
         ev.preventDefault();
-        const message = messages.find(m => m.id === selectedMessageId);
+        const message = messages.find((m) => m.id === selectedMessageId);
         if (message) {
           startReply(message);
         }
@@ -1325,8 +1458,8 @@ export default function ChatWindow({
         prev.map((m) =>
           m.id === editingId
             ? ({ ...m, content, updated_at: nowIso } as UIMessage)
-            : m,
-        ),
+            : m
+        )
       );
     } catch (e) {
       console.error("Failed to edit message", e);
@@ -1340,7 +1473,7 @@ export default function ChatWindow({
   };
 
   const startReply = (message: UIMessage) => {
-    console.log('Starting reply to message:', message.id, message.content);
+    console.log("Starting reply to message:", message.id, message.content);
     setReplyingTo(message);
     setContextMenu(null);
     // Focus the message input
@@ -1364,11 +1497,11 @@ export default function ChatWindow({
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (swipeStartX === null || swipeStartY === null) return;
-    
+
     const touch = e.touches[0];
     const deltaX = touch.clientX - swipeStartX;
     const deltaY = Math.abs(touch.clientY - swipeStartY);
-    
+
     // Only allow horizontal swipes (prevent vertical scrolling interference)
     if (deltaY < 50 && deltaX > 0) {
       e.preventDefault();
@@ -1379,22 +1512,27 @@ export default function ChatWindow({
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (swipeStartX === null || swipingMessageId === null) return;
-    
+
     const touch = e.changedTouches[0];
     const deltaX = touch.clientX - swipeStartX;
-    
+
     // If swiped right more than 50px, trigger reply
     if (deltaX > 50) {
-      console.log('Swipe detected, deltaX:', deltaX, 'messageId:', swipingMessageId);
-      const message = messages.find(m => m.id === swipingMessageId);
+      console.log(
+        "Swipe detected, deltaX:",
+        deltaX,
+        "messageId:",
+        swipingMessageId
+      );
+      const message = messages.find((m) => m.id === swipingMessageId);
       if (message) {
-        console.log('Found message, starting reply');
+        console.log("Found message, starting reply");
         startReply(message);
       } else {
-        console.log('Message not found for ID:', swipingMessageId);
+        console.log("Message not found for ID:", swipingMessageId);
       }
     }
-    
+
     // Reset swipe state
     setSwipeStartX(null);
     setSwipeStartY(null);
@@ -1421,8 +1559,8 @@ export default function ChatWindow({
         prev.map((m) =>
           m.id === messageToDelete
             ? { ...m, content: "[Deleted Message]", updated_at: nowIso }
-            : m,
-        ),
+            : m
+        )
       );
     } catch (e) {
       console.error("Failed to delete message", e);
@@ -1435,7 +1573,7 @@ export default function ChatWindow({
 
   // Fix: handle empty or invalid URLs gracefully
   const extractUrlParts = (
-    url: string,
+    url: string
   ): {
     filename: string | null;
     extension: string | null;
@@ -1464,25 +1602,34 @@ export default function ChatWindow({
     const controller = new AbortController();
     const urlOnly = (s: string) => /^https?:\/\/\S+$/i.test(s.trim());
     const isImageUrl = (s: string) =>
-      /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.avif|\.svg)(?:\?.*)?$/i.test(s) || /\/i\.ibb\.co\//i.test(s);
-    const isVideoUrl = (s: string) => /(\.mp4|\.webm|\.ogg|\.mov|\.m4v)(?:\?.*)?$/i.test(s);
-    const isAudioUrl = (s: string) => /(\.mp3|\.wav|\.ogg|\.m4a|\.aac)(?:\?.*)?$/i.test(s);
+      /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.avif|\.svg)(?:\?.*)?$/i.test(s) ||
+      /\/i\.ibb\.co\//i.test(s);
+    const isVideoUrl = (s: string) =>
+      /(\.mp4|\.webm|\.ogg|\.mov|\.m4v)(?:\?.*)?$/i.test(s);
+    const isAudioUrl = (s: string) =>
+      /(\.mp3|\.wav|\.ogg|\.m4a|\.aac)(?:\?.*)?$/i.test(s);
     const isVidsrcUrl = (s: string) => /vidsrc\./i.test(s);
 
     const tasks: Promise<void>[] = [];
     messages.forEach((m) => {
       const c = (m.content || "").trim();
       if (!urlOnly(c)) return;
-      if (isImageUrl(c) || isVideoUrl(c) || isAudioUrl(c) || isVidsrcUrl(c)) return;
+      if (isImageUrl(c) || isVideoUrl(c) || isAudioUrl(c) || isVidsrcUrl(c))
+        return;
       if (linkPreviews[m.id]) return;
       setLinkPreviews((prev) => ({ ...prev, [m.id]: "loading" }));
       const p = (async () => {
         try {
-          const res = await fetch(`/api/url/preview?url=${encodeURIComponent(c)}`, {
-            cache: "no-store",
-            signal: controller.signal,
-          });
-          const json = (await res.json().catch(() => null)) as UrlPreview | null;
+          const res = await fetch(
+            `/api/url/preview?url=${encodeURIComponent(c)}`,
+            {
+              cache: "no-store",
+              signal: controller.signal,
+            }
+          );
+          const json = (await res
+            .json()
+            .catch(() => null)) as UrlPreview | null;
           if (!json || !res.ok) {
             setLinkPreviews((prev) => ({ ...prev, [m.id]: "error" }));
             return;
@@ -1504,7 +1651,11 @@ export default function ChatWindow({
       const host = u.hostname.toLowerCase().replace(/^www\./, "");
 
       // Native YouTube hosts (youtube.com, youtu.be) and privacy-enhanced host (youtube-nocookie.com)
-      if (host === "youtu.be" || host === "youtube.com" || host === "youtube-nocookie.com") {
+      if (
+        host === "youtu.be" ||
+        host === "youtube.com" ||
+        host === "youtube-nocookie.com"
+      ) {
         if (host === "youtu.be") {
           const id = u.pathname.split("/").filter(Boolean)[0];
           return id || null;
@@ -1534,7 +1685,7 @@ export default function ChatWindow({
       if (!isWindowFocused || !isTabVisible) return;
       const unseen = messages.filter(
         (m) =>
-          m.sender_id !== user.id && !(readByMap[m.id] || []).includes(user.id),
+          m.sender_id !== user.id && !(readByMap[m.id] || []).includes(user.id)
       );
       if (unseen.length === 0) return;
       const rows = unseen.map((m) => ({ message_id: m.id, user_id: user.id }));
@@ -1559,7 +1710,7 @@ export default function ChatWindow({
     <div className={styles.chatWindow}>
       {/* Mobile Picker Overlays */}
       {(showEmojiPicker || showGifPicker) && (
-        <div 
+        <div
           className={styles.mobilePickerOverlay}
           onClick={() => {
             setShowEmojiPicker(false);
@@ -1616,13 +1767,19 @@ export default function ChatWindow({
                       <div className={styles.swipeText}>Reply</div>
                     </div>
                   )}
-                  
+
                   <div
                     data-message-id={message.id}
-                    className={`${styles.message} ${isOwn ? styles.ownMessage : ""} ${
-                      isBotMessage(message) ? styles.botMessage : ""
-                    } ${selectedMessageId === message.id ? styles.selectedMessage : ""} ${
-                      swipingMessageId === message.id ? styles.swipingMessage : ""
+                    className={`${styles.message} ${
+                      isOwn ? styles.ownMessage : ""
+                    } ${isBotMessage(message) ? styles.botMessage : ""} ${
+                      selectedMessageId === message.id
+                        ? styles.selectedMessage
+                        : ""
+                    } ${
+                      swipingMessageId === message.id
+                        ? styles.swipingMessage
+                        : ""
                     }`}
                     onContextMenu={(e) => openContextMenu(e, message.id)}
                     onClick={() => setSelectedMessageId(message.id)}
@@ -1630,515 +1787,617 @@ export default function ChatWindow({
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                     style={{
-                      transform: swipingMessageId === message.id ? `translateX(${swipeDistance}px)` : 'translateX(0)',
-                      transition: swipingMessageId === message.id ? 'none' : 'transform 0.2s ease'
+                      transform:
+                        swipingMessageId === message.id
+                          ? `translateX(${swipeDistance}px)`
+                          : "translateX(0)",
+                      transition:
+                        swipingMessageId === message.id
+                          ? "none"
+                          : "transform 0.2s ease",
                     }}
                   >
-                  <div className={styles.messageRow}>
-                    {!isOwn && (
-                      <div className={styles.avatar} aria-hidden>
-                        {(() => {
-                          const a = message.sender?.avatar_url;
-                          if (a) {
-                            return (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={a}
-                                alt=""
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  borderRadius: "50%",
-                                  objectFit: "cover",
-                                }}
-                              />
-                            );
-                          }
-                          const initial = (
-                            message.sender?.full_name?.[0] ||
-                            message.sender_username?.[0] ||
-                            message.sender_email?.[0] ||
-                            "U"
-                          ).toUpperCase();
-                          return initial;
-                        })()}
-                      </div>
-                    )}
-                    <div className={styles.messageContent}>
-                      <div className={styles.messageSender}>
-                        {(() => {
-                          // Prefer nickname set by current user for others
-                          if (!isOwn) {
-                            const nick = nicknameMap[message.sender_id];
-                            if (nick) return nick;
-                          }
-                          const explicitUsername =
-                            message.sender_username || null;
-                          const derivedUsername = isOwn
-                            ? emailToUsername(user.email)
-                            : null;
-                          const username =
-                            explicitUsername || derivedUsername || null;
-
-                          const explicitFullName = message.sender_name || null;
-                          const derivedFullName = isOwn
-                            ? (user.user_metadata as { full_name?: string })
-                                ?.full_name || null
-                            : null;
-                          const fullName =
-                            explicitFullName || derivedFullName || null;
-
-                          if (fullName && username)
-                            return `${fullName} (${username})`;
-                          if (fullName) return fullName;
-                          if (username) return username;
-                          if (message.sender_email)
-                            return (
-                              emailToUsername(message.sender_email) ||
-                              message.sender_email
-                            );
-                          return isOwn ? "You" : "Unknown";
-                        })()}
-                      </div>
-                      
-                      {/* Reply Display */}
-                      {message.reply_to_message && (
-                        <div 
-                          className={styles.replyDisplay}
-                          onClick={() => {
-                            // Find the original message element and scroll to it
-                            const originalMessageElement = document.querySelector(`[data-message-id="${message.reply_to_id}"]`);
-                            if (originalMessageElement) {
-                              originalMessageElement.scrollIntoView({ 
-                                behavior: 'smooth', 
-                                block: 'center' 
-                              });
-                              // Highlight the original message briefly
-                              originalMessageElement.classList.add(styles.highlightedMessage);
-                              setTimeout(() => {
-                                originalMessageElement.classList.remove(styles.highlightedMessage);
-                              }, 2000);
+                    <div className={styles.messageRow}>
+                      {!isOwn && (
+                        <div className={styles.avatar} aria-hidden>
+                          {(() => {
+                            const a = message.sender?.avatar_url;
+                            if (a) {
+                              return (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={a}
+                                  alt=""
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    borderRadius: "50%",
+                                    objectFit: "cover",
+                                  }}
+                                />
+                              );
                             }
-                          }}
-                          style={{ cursor: 'pointer' }}
-                          title="Click to view original message"
-                        >
-                          <div className={styles.replyDisplayContent}>
-                            <div className={styles.replyDisplaySender}>
-                              {(() => {
-                                const replyIsOwn = message.reply_to_message.sender_id === user.id;
-                                if (replyIsOwn) return "You";
-                                const nick = nicknameMap[message.reply_to_message.sender_id];
-                                if (nick) return nick;
-                                return message.reply_to_message.sender_username || message.reply_to_message.sender_name || "Unknown";
-                              })()}
-                            </div>
-                            <div className={styles.replyDisplayMessage}>
-                              {isDeletedMessage(message.reply_to_message) 
-                                ? "[Deleted Message]" 
-                                : message.reply_to_message.content.length > 30 
-                                  ? message.reply_to_message.content.substring(0, 30) + "..." 
-                                  : message.reply_to_message.content}
-                            </div>
-                          </div>
+                            const initial = (
+                              message.sender?.full_name?.[0] ||
+                              message.sender_username?.[0] ||
+                              message.sender_email?.[0] ||
+                              "U"
+                            ).toUpperCase();
+                            return initial;
+                          })()}
                         </div>
                       )}
-                      {(() => {
-                        if (isDeletedMessage(message)) {
-                          return (
-                            <div className={styles.deletedMessage}>
-                              [Deleted Message]
-                            </div>
-                          );
-                        }
-                        if (
-                          editingId === message.id &&
-                          canEditMessage(message) &&
-                          !isPollMessage(message)
-                        ) {
-                          return (
-                            <div
-                              className={styles.messageText}
-                              style={{ maxWidth: "100%" }}
-                            >
-                              <textarea
-                                className={styles.editTextarea}
-                                value={editText}
-                                onChange={(e) => setEditText(e.target.value)}
-                                rows={3}
-                              />
-                              <div className={styles.editActions}>
-                                <button
-                                  type="button"
-                                  className={styles.editSave}
-                                  onClick={saveEdit}
-                                  disabled={!editText.trim()}
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  type="button"
-                                  className={styles.editCancel}
-                                  onClick={cancelEdit}
-                                >
-                                  Cancel
-                                </button>
+                      <div className={styles.messageContent}>
+                        <div className={styles.messageSender}>
+                          {(() => {
+                            // Prefer nickname set by current user for others
+                            if (!isOwn) {
+                              const nick = nicknameMap[message.sender_id];
+                              if (nick) return nick;
+                            }
+                            const explicitUsername =
+                              message.sender_username || null;
+                            const derivedUsername = isOwn
+                              ? emailToUsername(user.email)
+                              : null;
+                            const username =
+                              explicitUsername || derivedUsername || null;
+
+                            const explicitFullName =
+                              message.sender_name || null;
+                            const derivedFullName = isOwn
+                              ? (user.user_metadata as { full_name?: string })
+                                  ?.full_name || null
+                              : null;
+                            const fullName =
+                              explicitFullName || derivedFullName || null;
+
+                            if (fullName && username)
+                              return `${fullName} (${username})`;
+                            if (fullName) return fullName;
+                            if (username) return username;
+                            if (message.sender_email)
+                              return (
+                                emailToUsername(message.sender_email) ||
+                                message.sender_email
+                              );
+                            return isOwn ? "You" : "Unknown";
+                          })()}
+                        </div>
+
+                        {/* Reply Display */}
+                        {message.reply_to_message && (
+                          <div
+                            className={styles.replyDisplay}
+                            onClick={() => {
+                              // Find the original message element and scroll to it
+                              const originalMessageElement =
+                                document.querySelector(
+                                  `[data-message-id="${message.reply_to_id}"]`
+                                );
+                              if (originalMessageElement) {
+                                originalMessageElement.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "center",
+                                });
+                                // Highlight the original message briefly
+                                originalMessageElement.classList.add(
+                                  styles.highlightedMessage
+                                );
+                                setTimeout(() => {
+                                  originalMessageElement.classList.remove(
+                                    styles.highlightedMessage
+                                  );
+                                }, 2000);
+                              }
+                            }}
+                            style={{ cursor: "pointer" }}
+                            title="Click to view original message"
+                          >
+                            <div className={styles.replyDisplayContent}>
+                              <div className={styles.replyDisplaySender}>
+                                {(() => {
+                                  const replyIsOwn =
+                                    message.reply_to_message.sender_id ===
+                                    user.id;
+                                  if (replyIsOwn) return "You";
+                                  const nick =
+                                    nicknameMap[
+                                      message.reply_to_message.sender_id
+                                    ];
+                                  if (nick) return nick;
+                                  return (
+                                    message.reply_to_message.sender_username ||
+                                    message.reply_to_message.sender_name ||
+                                    "Unknown"
+                                  );
+                                })()}
                               </div>
-                            </div>
-                          );
-                        }
-                        const content = message.content;
-                        
-                        // Poll rendering takes precedence over markdown/text
-                        if (isPollMessage(message)) {
-                          return (
-                            <div style={{ maxWidth: "100%" }}>
-                              <PollCard messageId={message.id} content={content} userId={user.id} />
-                            </div>
-                          );
-                        }
-                        const isUrl = /^https?:/i.test(content);
-                        if (!isUrl)
-                          return (
-                            <div className={styles.messageText}>
-                               <ReactMarkdown
-                                 remarkPlugins={[remarkGfm, remarkBreaks]}
-                                 rehypePlugins={[rehypeSpoiler]}
-                                 skipHtml
-                                 components={{
-                                  a: ({ children, ...props }) => (
-                                    <a
-                                      {...props}
-                                      target="_blank"
-                                      rel="noopener noreferrer nofollow"
-                                    >
-                                      {children}
-                                    </a>
-                                  ),
-                                   span: ({ ...props }) => {
-                                     const className = (props.className || '') as string
-                                     if (className.split(' ').includes('spoiler')) {
-                                       return (
-                                         <span
-                                           {...props}
-                                           className={`${styles.spoiler} ${className}`}
-                                           role="button"
-                                           tabIndex={0}
-                                           onClick={(e) => {
-                                             const el = e.currentTarget as HTMLElement
-                                             el.classList.toggle(styles.spoilerRevealed)
-                                           }}
-                                           onKeyDown={(e) => {
-                                             if (e.key === 'Enter' || e.key === ' ') {
-                                               e.preventDefault()
-                                               const el = e.currentTarget as HTMLElement
-                                               el.classList.toggle(styles.spoilerRevealed)
-                                             }
-                                           }}
-                                         />
-                                       )
-                                     }
-                                     return <span {...props} />
-                                   },
-                                  img: ({ ...props }) => (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                      {...(props as React.ImgHTMLAttributes<HTMLImageElement>)}
-                                      alt=""
-                                      style={{
-                                        maxWidth: 320,
-                                        borderRadius: 12,
-                                        cursor: "pointer",
-                                      }}
-                                      onClick={() => {
-                                        const src = (props as React.ImgHTMLAttributes<HTMLImageElement>).src;
-                                        const alt = (props as React.ImgHTMLAttributes<HTMLImageElement>).alt || "";
-                                        if (src) {
-                                          if (typeof src === "string" && src) {
-                                          openImageModal(src, alt);
-                                          }
-                                        }
-                                      }}
-                                    />
-                                  ),
-                                }}
-                              >
-                                {content}
-                              </ReactMarkdown>
-                            </div>
-                          );
-
-                        const isImage =
-                          /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.avif|\.svg)(?:\?.*)?$/i.test(
-                            content,
-                          ) || /\/i\.ibb\.co\//i.test(content);
-                        if (isImage) {
-                          return (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={content}
-                              alt="Shared image"
-                              style={{ 
-                                maxWidth: "320px", 
-                                borderRadius: 12,
-                                cursor: "pointer"
-                              }}
-                              onClick={() => openImageModal(content, "Shared image")}
-                            />
-                          );
-                        }
-
-                        // If content is already a vidsrc embed URL (from server-side resolution), render directly
-                        const isVidsrc = /vidsrc\./i.test(content);
-                        if (isVidsrc) {
-                          return (
-                            <iframe
-                              src={content}
-                              style={{ width: 360, height: 203, border: 0, borderRadius: 12 }}
-                              allowFullScreen
-                              loading="lazy"
-                            />
-                          );
-                        }
-
-                        const { filename, extension, host } =
-                          extractUrlParts(content);
-                        const isFilebin = (host || "").includes("filebin.net");
-
-                        const isVideo =
-                          /(\.mp4|\.webm|\.ogg|\.mov|\.m4v)(?:\?.*)?$/i.test(
-                            content,
-                          );
-                        if (isVideo && !isFilebin) {
-                          return (
-                            <video
-                              src={content}
-                              controls
-                              style={{ maxWidth: 360, borderRadius: 12 }}
-                            />
-                          );
-                        }
-
-                        const isAudio =
-                          /(\.mp3|\.wav|\.ogg|\.m4a|\.aac)(?:\?.*)?$/i.test(
-                            content,
-                          );
-                        if (isAudio && !isFilebin) {
-                          return (
-                            <audio
-                              src={content}
-                              controls
-                              style={{ maxWidth: 360 }}
-                            />
-                          );
-                        }
-
-                        // URL-only link preview and YouTube embed
-                        const singleUrl = /^https?:\/\/\S+$/i.test(content.trim());
-                        if (singleUrl) {
-                          const ytId = getYouTubeId(content.trim());
-                          if (ytId) {
-                            return (
-                              <iframe
-                                src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(ytId)}`}
-                                title="YouTube video"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                allowFullScreen
-                                loading="lazy"
-                                style={{ width: 360, height: 203, border: 0, borderRadius: 12 }}
-                              />
-                            );
-                          }
-
-                          const preview = linkPreviews[message.id];
-                          if (preview && preview !== "loading" && preview !== "error") {
-                            return (
-                              <a
-                                className={styles.linkPreview}
-                                href={preview.url}
-                                target="_blank"
-                                rel="noopener noreferrer nofollow"
-                              >
-                                {preview.image ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img
-                                    src={preview.image}
-                                    alt="Preview image"
-                                    className={styles.linkPreviewImage}
-                                  />
-                                ) : null}
-                                <div className={styles.linkPreviewBody}>
-                                  <div className={styles.linkPreviewTitle}>{preview.title || preview.url}</div>
-                                  {preview.description ? (
-                                    <div className={styles.linkPreviewDesc}>{preview.description}</div>
-                                  ) : null}
-                                  <div className={styles.linkPreviewFooter}>
-                                    {preview.favicon ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img
-                                        src={preview.favicon}
-                                        alt=""
-                                        className={styles.linkPreviewFavicon}
-                                      />
-                                    ) : null}
-                                    <span className={styles.linkPreviewSite}>{preview.siteName || host || ""}</span>
-                                  </div>
-                                </div>
-                              </a>
-                            );
-                          }
-                          // Fallback while loading/if error: show simple open button
-                          if (preview === "loading") {
-                            return (
-                              <div className={styles.fileAttachment}>
-                                <div className={styles.fileIcon} aria-hidden>🔗</div>
-                                <div className={styles.fileBody}>
-                                  <div className={styles.fileName} title={content}>{content}</div>
-                                  <div className={styles.fileMeta}>{host || "Link"}</div>
-                                </div>
-                                <div className={styles.fileActions}>
-                                  <a href={content} target="_blank" rel="noreferrer" className={styles.fileButton}>
-                                    Open
-                                  </a>
-                                </div>
+                              <div className={styles.replyDisplayMessage}>
+                                {isDeletedMessage(message.reply_to_message)
+                                  ? "[Deleted Message]"
+                                  : message.reply_to_message.content.length > 30
+                                  ? message.reply_to_message.content.substring(
+                                      0,
+                                      30
+                                    ) + "..."
+                                  : message.reply_to_message.content}
                               </div>
-                            );
-                          }
-                        }
-
-                        const ext = (extension || "file").toLowerCase();
-                        const icon = (() => {
-                          if (["pdf"].includes(ext)) return "📄";
-                          if (
-                            ["doc", "docx", "rtf", "odt", "md", "txt"].includes(
-                              ext,
-                            )
-                          )
-                            return "📝";
-                          if (["xls", "xlsx", "csv", "ods"].includes(ext))
-                            return "📊";
-                          if (["ppt", "pptx", "odp"].includes(ext)) return "📈";
-                          if (["zip", "rar", "7z", "gz", "tar"].includes(ext))
-                            return "🗜️";
-                          if (
-                            ["mp4", "webm", "ogg", "mov", "m4v"].includes(ext)
-                          )
-                            return "🎞️";
-                          if (["mp3", "wav", "m4a", "aac"].includes(ext))
-                            return "🎧";
-                          if (
-                            [
-                              "png",
-                              "jpg",
-                              "jpeg",
-                              "gif",
-                              "webp",
-                              "avif",
-                              "svg",
-                            ].includes(ext)
-                          )
-                            return "🖼️";
-                          return "📦";
-                        })();
-
-                        return (
-                          <div className={styles.fileAttachment}>
-                            <div className={styles.fileIcon} aria-hidden>
-                              {icon}
-                            </div>
-                            <div className={styles.fileBody}>
-                              <div
-                                className={styles.fileName}
-                                title={filename || content}
-                              >
-                                {filename || content}
-                              </div>
-                              <div className={styles.fileMeta}>
-                                {ext.toUpperCase()}
-                                {host ? ` · ${host}` : ""}
-                              </div>
-                            </div>
-                            <div className={styles.fileActions}>
-                              <a
-                                href={content}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={styles.fileButton}
-                              >
-                                Open
-                              </a>
                             </div>
                           </div>
-                        );
-                      })()}
-                    </div>
-                    {isOwn && (
-                      <div className={styles.avatar} aria-hidden>
+                        )}
                         {(() => {
-                          const a =
-                            message.sender?.avatar_url ||
-                            (user.user_metadata as { avatar_url?: string })
-                              ?.avatar_url;
-                          if (a) {
+                          if (isDeletedMessage(message)) {
+                            return (
+                              <div className={styles.deletedMessage}>
+                                [Deleted Message]
+                              </div>
+                            );
+                          }
+                          if (
+                            editingId === message.id &&
+                            canEditMessage(message) &&
+                            !isPollMessage(message)
+                          ) {
+                            return (
+                              <div
+                                className={styles.messageText}
+                                style={{ maxWidth: "100%" }}
+                              >
+                                <textarea
+                                  className={styles.editTextarea}
+                                  value={editText}
+                                  onChange={(e) => setEditText(e.target.value)}
+                                  rows={3}
+                                />
+                                <div className={styles.editActions}>
+                                  <button
+                                    type="button"
+                                    className={styles.editSave}
+                                    onClick={saveEdit}
+                                    disabled={!editText.trim()}
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.editCancel}
+                                    onClick={cancelEdit}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
+                          const content = message.content;
+
+                          // Poll rendering takes precedence over markdown/text
+                          if (isPollMessage(message)) {
+                            return (
+                              <div style={{ maxWidth: "100%" }}>
+                                <PollCard
+                                  messageId={message.id}
+                                  content={content}
+                                  userId={user.id}
+                                />
+                              </div>
+                            );
+                          }
+                          const isUrl = /^https?:/i.test(content);
+                          if (!isUrl)
+                            return (
+                              <div className={styles.messageText}>
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm, remarkBreaks]}
+                                  rehypePlugins={[rehypeSpoiler]}
+                                  skipHtml
+                                  components={{
+                                    a: ({ children, ...props }) => (
+                                      <a
+                                        {...props}
+                                        target="_blank"
+                                        rel="noopener noreferrer nofollow"
+                                      >
+                                        {children}
+                                      </a>
+                                    ),
+                                    span: ({ ...props }) => {
+                                      const className = (props.className ||
+                                        "") as string;
+                                      if (
+                                        className.split(" ").includes("spoiler")
+                                      ) {
+                                        return (
+                                          <span
+                                            {...props}
+                                            className={`${styles.spoiler} ${className}`}
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={(e) => {
+                                              const el =
+                                                e.currentTarget as HTMLElement;
+                                              el.classList.toggle(
+                                                styles.spoilerRevealed
+                                              );
+                                            }}
+                                            onKeyDown={(e) => {
+                                              if (
+                                                e.key === "Enter" ||
+                                                e.key === " "
+                                              ) {
+                                                e.preventDefault();
+                                                const el =
+                                                  e.currentTarget as HTMLElement;
+                                                el.classList.toggle(
+                                                  styles.spoilerRevealed
+                                                );
+                                              }
+                                            }}
+                                          />
+                                        );
+                                      }
+                                      return <span {...props} />;
+                                    },
+                                    img: ({ ...props }) => (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        {...(props as React.ImgHTMLAttributes<HTMLImageElement>)}
+                                        alt=""
+                                        style={{
+                                          maxWidth: 320,
+                                          borderRadius: 12,
+                                          cursor: "pointer",
+                                        }}
+                                        onClick={() => {
+                                          const src = (
+                                            props as React.ImgHTMLAttributes<HTMLImageElement>
+                                          ).src;
+                                          const alt =
+                                            (
+                                              props as React.ImgHTMLAttributes<HTMLImageElement>
+                                            ).alt || "";
+                                          if (src) {
+                                            if (
+                                              typeof src === "string" &&
+                                              src
+                                            ) {
+                                              openImageModal(src, alt);
+                                            }
+                                          }
+                                        }}
+                                      />
+                                    ),
+                                  }}
+                                >
+                                  {content}
+                                </ReactMarkdown>
+                              </div>
+                            );
+
+                          const isImage =
+                            /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.avif|\.svg)(?:\?.*)?$/i.test(
+                              content
+                            ) || /\/i\.ibb\.co\//i.test(content);
+                          if (isImage) {
                             return (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
-                                src={a}
-                                alt=""
+                                src={content}
+                                alt="Shared image"
                                 style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  borderRadius: "50%",
-                                  objectFit: "cover",
+                                  maxWidth: "320px",
+                                  borderRadius: 12,
+                                  cursor: "pointer",
                                 }}
+                                onClick={() =>
+                                  openImageModal(content, "Shared image")
+                                }
                               />
                             );
                           }
-                          const fullName =
-                            (user.user_metadata as { full_name?: string })
-                              ?.full_name ||
-                            message.sender?.full_name ||
-                            null;
-                          const initial = (
-                            fullName?.[0] ||
-                            user.email?.[0] ||
-                            message.sender_username?.[0] ||
-                            "U"
-                          ).toUpperCase();
-                          return initial;
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                  <div
-                    className={`${styles.metaRow} ${isOwn ? styles.metaRight : styles.metaLeft}`}
-                  >
-                    <div className={styles.messageTime}>
-                      {formatTime(message.created_at)}
-                      {isEditedMessage(message) && !isDeletedMessage(message)
-                        ? " - edited"
-                        : ""}
-                    </div>
-                    {isOwn && (
-                      <div className={styles.readReceipt}>
-                        {(() => {
-                          const readers = readByMap[message.id] || [];
-                          if (selectedChat.type === "dm") {
-                            const read = readers.some((rid) => rid !== user.id);
-                            return read ? "Read" : "Sent";
+
+                          // If content is already a vidsrc embed URL (from server-side resolution), render directly
+                          const isVidsrc = /vidsrc\./i.test(content);
+                          if (isVidsrc) {
+                            return (
+                              <iframe
+                                src={content}
+                                style={{
+                                  width: 360,
+                                  height: 203,
+                                  border: 0,
+                                  borderRadius: 12,
+                                }}
+                                allowFullScreen
+                                loading="lazy"
+                              />
+                            );
                           }
-                          const count = readers.filter(
-                            (rid) => rid !== user.id,
-                          ).length;
-                          return count > 0 ? `Read by ${count}` : "Sent";
+
+                          const { filename, extension, host } =
+                            extractUrlParts(content);
+                          const isFilebin = (host || "").includes(
+                            "filebin.net"
+                          );
+
+                          const isVideo =
+                            /(\.mp4|\.webm|\.ogg|\.mov|\.m4v)(?:\?.*)?$/i.test(
+                              content
+                            );
+                          if (isVideo && !isFilebin) {
+                            return (
+                              <video
+                                src={content}
+                                controls
+                                style={{ maxWidth: 360, borderRadius: 12 }}
+                              />
+                            );
+                          }
+
+                          const isAudio =
+                            /(\.mp3|\.wav|\.ogg|\.m4a|\.aac)(?:\?.*)?$/i.test(
+                              content
+                            );
+                          if (isAudio && !isFilebin) {
+                            return (
+                              <audio
+                                src={content}
+                                controls
+                                style={{ maxWidth: 360 }}
+                              />
+                            );
+                          }
+
+                          // URL-only link preview and YouTube embed
+                          const singleUrl = /^https?:\/\/\S+$/i.test(
+                            content.trim()
+                          );
+                          if (singleUrl) {
+                            const ytId = getYouTubeId(content.trim());
+                            if (ytId) {
+                              return (
+                                <iframe
+                                  src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(
+                                    ytId
+                                  )}`}
+                                  title="YouTube video"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                  allowFullScreen
+                                  loading="lazy"
+                                  style={{
+                                    width: 360,
+                                    height: 203,
+                                    border: 0,
+                                    borderRadius: 12,
+                                  }}
+                                />
+                              );
+                            }
+
+                            const preview = linkPreviews[message.id];
+                            if (
+                              preview &&
+                              preview !== "loading" &&
+                              preview !== "error"
+                            ) {
+                              return (
+                                <a
+                                  className={styles.linkPreview}
+                                  href={preview.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer nofollow"
+                                >
+                                  {preview.image ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={preview.image}
+                                      alt="Preview image"
+                                      className={styles.linkPreviewImage}
+                                    />
+                                  ) : null}
+                                  <div className={styles.linkPreviewBody}>
+                                    <div className={styles.linkPreviewTitle}>
+                                      {preview.title || preview.url}
+                                    </div>
+                                    {preview.description ? (
+                                      <div className={styles.linkPreviewDesc}>
+                                        {preview.description}
+                                      </div>
+                                    ) : null}
+                                    <div className={styles.linkPreviewFooter}>
+                                      {preview.favicon ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                          src={preview.favicon}
+                                          alt=""
+                                          className={styles.linkPreviewFavicon}
+                                        />
+                                      ) : null}
+                                      <span className={styles.linkPreviewSite}>
+                                        {preview.siteName || host || ""}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </a>
+                              );
+                            }
+                            // Fallback while loading/if error: show simple open button
+                            if (preview === "loading") {
+                              return (
+                                <div className={styles.fileAttachment}>
+                                  <div className={styles.fileIcon} aria-hidden>
+                                    🔗
+                                  </div>
+                                  <div className={styles.fileBody}>
+                                    <div
+                                      className={styles.fileName}
+                                      title={content}
+                                    >
+                                      {content}
+                                    </div>
+                                    <div className={styles.fileMeta}>
+                                      {host || "Link"}
+                                    </div>
+                                  </div>
+                                  <div className={styles.fileActions}>
+                                    <a
+                                      href={content}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className={styles.fileButton}
+                                    >
+                                      Open
+                                    </a>
+                                  </div>
+                                </div>
+                              );
+                            }
+                          }
+
+                          const ext = (extension || "file").toLowerCase();
+                          const icon = (() => {
+                            if (["pdf"].includes(ext)) return "📄";
+                            if (
+                              [
+                                "doc",
+                                "docx",
+                                "rtf",
+                                "odt",
+                                "md",
+                                "txt",
+                              ].includes(ext)
+                            )
+                              return "📝";
+                            if (["xls", "xlsx", "csv", "ods"].includes(ext))
+                              return "📊";
+                            if (["ppt", "pptx", "odp"].includes(ext))
+                              return "📈";
+                            if (["zip", "rar", "7z", "gz", "tar"].includes(ext))
+                              return "🗜️";
+                            if (
+                              ["mp4", "webm", "ogg", "mov", "m4v"].includes(ext)
+                            )
+                              return "🎞️";
+                            if (["mp3", "wav", "m4a", "aac"].includes(ext))
+                              return "🎧";
+                            if (
+                              [
+                                "png",
+                                "jpg",
+                                "jpeg",
+                                "gif",
+                                "webp",
+                                "avif",
+                                "svg",
+                              ].includes(ext)
+                            )
+                              return "🖼️";
+                            return "📦";
+                          })();
+
+                          return (
+                            <div className={styles.fileAttachment}>
+                              <div className={styles.fileIcon} aria-hidden>
+                                {icon}
+                              </div>
+                              <div className={styles.fileBody}>
+                                <div
+                                  className={styles.fileName}
+                                  title={filename || content}
+                                >
+                                  {filename || content}
+                                </div>
+                                <div className={styles.fileMeta}>
+                                  {ext.toUpperCase()}
+                                  {host ? ` · ${host}` : ""}
+                                </div>
+                              </div>
+                              <div className={styles.fileActions}>
+                                <a
+                                  href={content}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className={styles.fileButton}
+                                >
+                                  Open
+                                </a>
+                              </div>
+                            </div>
+                          );
                         })()}
                       </div>
-                    )}
+                      {isOwn && (
+                        <div className={styles.avatar} aria-hidden>
+                          {(() => {
+                            const a =
+                              message.sender?.avatar_url ||
+                              (user.user_metadata as { avatar_url?: string })
+                                ?.avatar_url;
+                            if (a) {
+                              return (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={a}
+                                  alt=""
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    borderRadius: "50%",
+                                    objectFit: "cover",
+                                  }}
+                                />
+                              );
+                            }
+                            const fullName =
+                              (user.user_metadata as { full_name?: string })
+                                ?.full_name ||
+                              message.sender?.full_name ||
+                              null;
+                            const initial = (
+                              fullName?.[0] ||
+                              user.email?.[0] ||
+                              message.sender_username?.[0] ||
+                              "U"
+                            ).toUpperCase();
+                            return initial;
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                    <div
+                      className={`${styles.metaRow} ${
+                        isOwn ? styles.metaRight : styles.metaLeft
+                      }`}
+                    >
+                      <div className={styles.messageTime}>
+                        {formatTime(message.created_at)}
+                        {isEditedMessage(message) && !isDeletedMessage(message)
+                          ? " - edited"
+                          : ""}
+                      </div>
+                      {isOwn && (
+                        <div className={styles.readReceipt}>
+                          {(() => {
+                            const readers = readByMap[message.id] || [];
+                            if (selectedChat.type === "dm") {
+                              const read = readers.some(
+                                (rid) => rid !== user.id
+                              );
+                              return read ? "Read" : "Sent";
+                            }
+                            const count = readers.filter(
+                              (rid) => rid !== user.id
+                            ).length;
+                            return count > 0 ? `Read by ${count}` : "Sent";
+                          })()}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -2156,13 +2415,17 @@ export default function ChatWindow({
                   if (isOwn) return "yourself";
                   const nick = nicknameMap[replyingTo.sender_id];
                   if (nick) return nick;
-                  return replyingTo.sender_username || replyingTo.sender_name || "Unknown";
+                  return (
+                    replyingTo.sender_username ||
+                    replyingTo.sender_name ||
+                    "Unknown"
+                  );
                 })()}
               </span>
             </div>
             <div className={styles.replyIndicatorMessage}>
-              {replyingTo.content.length > 50 
-                ? replyingTo.content.substring(0, 50) + "..." 
+              {replyingTo.content.length > 50
+                ? replyingTo.content.substring(0, 50) + "..."
                 : replyingTo.content}
             </div>
           </div>
@@ -2173,7 +2436,7 @@ export default function ChatWindow({
             aria-label="Cancel reply"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
             </svg>
           </button>
         </div>
@@ -2199,7 +2462,7 @@ export default function ChatWindow({
             style={{ display: "none" }}
             onChange={handleUploadFile}
           />
-          
+
           {/* Mobile Menu Button */}
           <button
             type="button"
@@ -2208,39 +2471,48 @@ export default function ChatWindow({
             aria-label="More options"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
             </svg>
           </button>
 
           {/* Mobile Input Menu */}
           {showMobileMenu && (
             <div className={styles.mobileInputMenu} ref={mobileMenuRef}>
-              <div className={styles.mobileInputMenuItem} onClick={() => {
-                fileInputRef.current?.click();
-                setShowMobileMenu(false);
-              }}>
+              <div
+                className={styles.mobileInputMenuItem}
+                onClick={() => {
+                  fileInputRef.current?.click();
+                  setShowMobileMenu(false);
+                }}
+              >
                 <span className={styles.mobileInputMenuIcon}>📎</span>
                 <span>Attach File</span>
               </div>
               {gifProvider && (
-                <div className={styles.mobileInputMenuItem} onClick={() => {
-                  setShowGifPicker(true);
-                  setShowMobileMenu(false);
-                }}>
+                <div
+                  className={styles.mobileInputMenuItem}
+                  onClick={() => {
+                    setShowGifPicker(true);
+                    setShowMobileMenu(false);
+                  }}
+                >
                   <span className={styles.mobileInputMenuIcon}>GIF</span>
                   <span>GIF</span>
                 </div>
               )}
-              <div className={styles.mobileInputMenuItem} onClick={() => {
-                setShowCreatePoll(true);
-                setShowMobileMenu(false);
-              }}>
+              <div
+                className={styles.mobileInputMenuItem}
+                onClick={() => {
+                  setShowCreatePoll(true);
+                  setShowMobileMenu(false);
+                }}
+              >
                 <span className={styles.mobileInputMenuIcon}>📊</span>
                 <span>Create Poll</span>
               </div>
             </div>
           )}
-          
+
           {/* Desktop Controls */}
           <div className={styles.desktopControls}>
             <button
@@ -2341,10 +2613,35 @@ export default function ChatWindow({
                 aria-label="Create poll"
                 onClick={() => setShowCreatePoll(true)}
               >
-                <svg className={styles.sendIcon} viewBox="0 0 24 24" aria-hidden>
-                  <rect x="4" y="10" width="3" height="8" rx="1" fill="currentColor" />
-                  <rect x="10.5" y="6" width="3" height="12" rx="1" fill="currentColor" />
-                  <rect x="17" y="3" width="3" height="15" rx="1" fill="currentColor" />
+                <svg
+                  className={styles.sendIcon}
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <rect
+                    x="4"
+                    y="10"
+                    width="3"
+                    height="8"
+                    rx="1"
+                    fill="currentColor"
+                  />
+                  <rect
+                    x="10.5"
+                    y="6"
+                    width="3"
+                    height="12"
+                    rx="1"
+                    fill="currentColor"
+                  />
+                  <rect
+                    x="17"
+                    y="3"
+                    width="3"
+                    height="15"
+                    rx="1"
+                    fill="currentColor"
+                  />
                 </svg>
               </button>
             </div>
@@ -2378,7 +2675,9 @@ export default function ChatWindow({
                               await searchGifs(gifQuery);
                             }
                           }}
-                          placeholder={`Search ${gifProvider === "tenor" ? "Tenor" : "Giphy"} GIFs...`}
+                          placeholder={`Search ${
+                            gifProvider === "tenor" ? "Tenor" : "Giphy"
+                          } GIFs...`}
                         />
                         <button
                           type="button"
@@ -2420,8 +2719,6 @@ export default function ChatWindow({
             </div>
           )}
 
-
-
           <textarea
             ref={messageInputRef}
             rows={1}
@@ -2429,24 +2726,26 @@ export default function ChatWindow({
             onChange={(e) => {
               setNewMessage(e.target.value);
               autoResizeTextArea(e.currentTarget);
-              startTyping();
+              debouncedStartTyping();
             }}
             onKeyDown={(e) => {
               if (showCommandSuggestions) {
                 if (e.key === "ArrowDown") {
                   e.preventDefault();
-                  setSelectedCommandIndex(prev => 
+                  setSelectedCommandIndex((prev) =>
                     prev < filteredCommands.length - 1 ? prev + 1 : 0
                   );
                 } else if (e.key === "ArrowUp") {
                   e.preventDefault();
-                  setSelectedCommandIndex(prev => 
+                  setSelectedCommandIndex((prev) =>
                     prev > 0 ? prev - 1 : filteredCommands.length - 1
                   );
                 } else if (e.key === "Enter") {
                   e.preventDefault();
                   if (filteredCommands[selectedCommandIndex]) {
-                    setNewMessage(filteredCommands[selectedCommandIndex].command + ' ');
+                    setNewMessage(
+                      filteredCommands[selectedCommandIndex].command + " "
+                    );
                     setShowCommandSuggestions(false);
                   }
                 } else if (e.key === "Escape") {
@@ -2468,30 +2767,40 @@ export default function ChatWindow({
             disabled={sending}
             style={{ overflow: "hidden" }}
           />
-          
+
           {/* Command Suggestions Dropdown */}
           {showCommandSuggestions && (
             <div className={styles.commandSuggestions}>
               <div className={styles.commandSuggestionsHeader}>
                 <span className={styles.commandSuggestionsIcon}>🕐</span>
-                <span className={styles.commandSuggestionsTitle}>Frequently Used</span>
+                <span className={styles.commandSuggestionsTitle}>
+                  Frequently Used
+                </span>
               </div>
               <div className={styles.commandSuggestionsList}>
                 {filteredCommands.map((cmd, index) => (
                   <div
                     key={cmd.command}
                     className={`${styles.commandSuggestionItem} ${
-                      index === selectedCommandIndex ? styles.commandSuggestionSelected : ''
+                      index === selectedCommandIndex
+                        ? styles.commandSuggestionSelected
+                        : ""
                     }`}
                     onClick={() => {
-                      setNewMessage(cmd.command + ' ');
+                      setNewMessage(cmd.command + " ");
                       setShowCommandSuggestions(false);
                     }}
                   >
-                    <div className={styles.commandSuggestionIcon}>{cmd.icon}</div>
+                    <div className={styles.commandSuggestionIcon}>
+                      {cmd.icon}
+                    </div>
                     <div className={styles.commandSuggestionContent}>
-                      <div className={styles.commandSuggestionName}>{cmd.command}</div>
-                      <div className={styles.commandSuggestionDescription}>{cmd.description}</div>
+                      <div className={styles.commandSuggestionName}>
+                        {cmd.command}
+                      </div>
+                      <div className={styles.commandSuggestionDescription}>
+                        {cmd.description}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -2548,7 +2857,10 @@ export default function ChatWindow({
                 key: "edit",
                 label: "Edit",
                 onClick: () => beginEdit(msg.id),
-                show: canEditMessage(msg) && !isDeletedMessage(msg) && !isPollMessage(msg),
+                show:
+                  canEditMessage(msg) &&
+                  !isDeletedMessage(msg) &&
+                  !isPollMessage(msg),
               },
               {
                 key: "delete",
@@ -2597,7 +2909,11 @@ export default function ChatWindow({
         open={showInviteInput}
         title="Copy Invite Link"
         message="Copy this invite link to share with others:"
-        defaultValue={selectedChat?.inviteCode ? `${window.location.origin}/invite/${selectedChat.inviteCode}` : ""}
+        defaultValue={
+          selectedChat?.inviteCode
+            ? `${window.location.origin}/invite/${selectedChat.inviteCode}`
+            : ""
+        }
         confirmText="Copy"
         cancelText="Close"
         onConfirm={(value) => {

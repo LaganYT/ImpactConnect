@@ -433,9 +433,8 @@
   background: rgba(0, 0, 0, 0.08);
   padding: 0.1rem 0.3rem;
   border-radius: 4px;
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
   font-size: 0.9em;
 }
 
@@ -478,7 +477,7 @@
 }
 
 .spoiler:focus {
-  outline: 2px solid rgba(0,0,0,0.2);
+  outline: 2px solid rgba(0, 0, 0, 0.2);
   outline-offset: 1px;
 }
 
@@ -730,6 +729,13 @@
   color: var(--color-text);
   /* Prevent zoom on iOS */
   font-size: 16px;
+  /* Mobile input performance optimizations */
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  /* Optimize for touch input */
+  touch-action: manipulation;
+  /* Reduce layout thrashing */
+  contain: layout style;
 }
 
 .messageInput:focus {
@@ -892,7 +898,7 @@
   color: inherit;
   padding: 10px;
   border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .ownMessage .linkPreview {
@@ -905,7 +911,7 @@
   height: 100px;
   object-fit: cover;
   border-radius: 8px;
-  background: rgba(0,0,0,0.06);
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .linkPreviewBody {
@@ -939,7 +945,7 @@
 }
 
 .ownMessage .linkPreviewDesc {
-  color: rgba(255,255,255,0.9);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .linkPreviewFooter {
@@ -961,7 +967,7 @@
 }
 
 .ownMessage .linkPreviewSite {
-  color: rgba(255,255,255,0.9);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 /* Context menu for message actions */
@@ -1185,6 +1191,13 @@
     padding: 6px 10px;
     font-size: 16px;
     max-height: 80px;
+    /* Mobile input performance optimizations */
+    -webkit-appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    /* Reduce repaints on mobile */
+    will-change: auto;
+    /* Optimize for touch input */
+    touch-action: manipulation;
   }
 
   /* Mobile Emoji Picker */
@@ -1571,28 +1584,28 @@
     right: 16px;
     max-height: 250px;
   }
-  
+
   .commandSuggestionsList {
     max-height: 200px;
   }
-  
+
   .commandSuggestionItem {
     padding: 16px;
   }
-  
+
   .commandSuggestionIcon {
     width: 36px;
     height: 36px;
     font-size: 18px;
   }
-  
+
   .commandSuggestionName {
     font-size: 16px;
   }
-  
+
   .commandSuggestionDescription {
-  font-size: 14px;
-}
+    font-size: 14px;
+  }
 }
 
 /* Command Usage Message Styles */
@@ -1602,7 +1615,7 @@
   color: #5865f2;
   padding: 2px 6px;
   border-radius: 4px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   font-size: 0.9em;
   font-weight: 500;
   border: 1px solid rgba(88, 101, 242, 0.2);
@@ -1781,37 +1794,37 @@
   .message {
     touch-action: pan-y;
   }
-  
+
   .messageContainer {
     touch-action: pan-y;
   }
-  
+
   .inputContainer {
     min-height: 0;
     max-height: 120px;
   }
-  
+
   /* Reply Styles */
-.replyIndicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  margin-bottom: 8px;
-  font-size: 12px;
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-}
-  
+  .replyIndicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+  }
+
   .replyIndicatorMessage {
     font-size: 13px;
     color: var(--color-text);
     font-weight: 500;
   }
-  
+
   .replyIndicator {
     position: fixed;
     bottom: 80px;
@@ -1828,12 +1841,12 @@
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
     animation: replyIndicatorSlideIn 0.3s ease-out;
   }
-  
+
   .replyIndicatorClose {
     min-width: 44px;
     min-height: 44px;
   }
-  
+
   .messageForm {
     min-height: 0;
     flex-shrink: 0;
