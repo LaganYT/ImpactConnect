@@ -145,12 +145,8 @@ export default function ChatWindow({
   const [linkPreviews, setLinkPreviews] = useState<
     Record<string, UrlPreview | "loading" | "error">
   >({});
-  type GifProvider = "tenor" | "giphy" | null;
-  const tenorKey =
-    (process.env.NEXT_PUBLIC_TENOR_KEY as string | undefined) || undefined;
-  const giphyKey =
-    (process.env.NEXT_PUBLIC_GIPHY_KEY as string | undefined) || undefined;
-  const [gifProvider, setGifProvider] = useState<GifProvider>(null);
+  const klipyKey =
+    (process.env.NEXT_PUBLIC_KLIPY_KEY as string | undefined) || undefined;
   const [showCreatePoll, setShowCreatePoll] = useState(false);
   // Mobile menu state
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -370,22 +366,14 @@ export default function ChatWindow({
     });
   };
 
-  // Minimal response types for Tenor and Giphy APIs
-  type TenorMediaVariant = { url?: string };
-  type TenorResult = {
+  // Minimal response types for Klipy API (same as Tenor format)
+  type KlipyMediaVariant = { url?: string };
+  type KlipyResult = {
     id?: string | number;
-    media_formats?: { gif?: TenorMediaVariant; tinygif?: TenorMediaVariant };
-    media?: Array<{ gif?: TenorMediaVariant; tinygif?: TenorMediaVariant }>;
+    media_formats?: { gif?: KlipyMediaVariant; tinygif?: KlipyMediaVariant };
+    media?: Array<{ gif?: KlipyMediaVariant; tinygif?: KlipyMediaVariant }>;
   };
-  type TenorResponse = { results?: TenorResult[] };
-  type GiphyImages = {
-    downsized?: { url?: string };
-    original?: { url?: string };
-    preview_gif?: { url?: string };
-    downsized_still?: { url?: string };
-  };
-  type GiphyResult = { id?: string | number; images?: GiphyImages };
-  type GiphyResponse = { data?: GiphyResult[] };
+  type KlipyResponse = { results?: KlipyResult[] };
   // Typing indicator state
   const [typingOthers, setTypingOthers] = useState<string[]>([]);
   const typingChannelRef = useRef<RealtimeChannel | null>(null);
@@ -508,76 +496,42 @@ export default function ChatWindow({
 
   // Pick default GIF provider based on available keys
   useEffect(() => {
-    if (tenorKey) setGifProvider("tenor");
-    else if (giphyKey) setGifProvider("giphy");
-    else setGifProvider(null);
-  }, [tenorKey, giphyKey]);
+    // Klipy is now the only provider
+  }, []);
 
   const fetchTrendingGifs = async () => {
-    if (!gifProvider) return;
+    if (!klipyKey) return;
     setGifLoading(true);
     try {
-      if (gifProvider === "tenor" && tenorKey) {
-        const params = new URLSearchParams({
-          key: tenorKey,
-          limit: "24",
-          media_filter: "gif",
-        });
-        const res = await fetch(
-          `https://tenor.googleapis.com/v2/featured?${params.toString()}`
-        );
-        const json = (await res
-          .json()
-          .catch(() => null)) as TenorResponse | null;
-        const items: Array<{ id: string; url: string; preview: string }> = (
-          json?.results || []
-        )
-          .map((r: TenorResult) => {
-            const gifUrl: string | undefined =
-              r?.media_formats?.gif?.url || r?.media?.[0]?.gif?.url;
-            const tinyUrl: string | undefined =
-              r?.media_formats?.tinygif?.url ||
-              r?.media?.[0]?.tinygif?.url ||
-              gifUrl;
-            return {
-              id: String(r?.id ?? crypto.randomUUID()),
-              url: gifUrl || "",
-              preview: tinyUrl || gifUrl || "",
-            };
-          })
-          .filter((i) => i.url);
-        setGifResults(items);
-      } else if (gifProvider === "giphy" && giphyKey) {
-        const params = new URLSearchParams({
-          api_key: giphyKey,
-          limit: "24",
-          rating: "pg",
-        });
-        const res = await fetch(
-          `https://api.giphy.com/v1/gifs/trending?${params.toString()}`
-        );
-        const json = (await res
-          .json()
-          .catch(() => null)) as GiphyResponse | null;
-        const items: Array<{ id: string; url: string; preview: string }> = (
-          json?.data || []
-        )
-          .map((r: GiphyResult) => {
-            const gifUrl: string | undefined =
-              r?.images?.downsized?.url || r?.images?.original?.url;
-            const preview: string | undefined =
-              r?.images?.preview_gif?.url ||
-              r?.images?.downsized_still?.url ||
-              gifUrl;
-            return {
-              id: String(r?.id ?? crypto.randomUUID()),
-              url: gifUrl || "",
-              preview: preview || gifUrl || "",
-            };
-          })
-          .filter((i) => i.url);
-        setGifResults(items);
-      }
+      const params = new URLSearchParams({
+        key: klipyKey,
+        limit: "24",
+        media_filter: "gif",
+      });
+      const res = await fetch(
+        `https://api.klipy.com/v2/featured?${params.toString()}`
+      );
+      const json = (await res
+        .json()
+        .catch(() => null)) as KlipyResponse | null;
+      const items: Array<{ id: string; url: string; preview: string }> = (
+        json?.results || []
+      )
+        .map((r: KlipyResult) => {
+          const gifUrl: string | undefined =
+            r?.media_formats?.gif?.url || r?.media?.[0]?.gif?.url;
+          const tinyUrl: string | undefined =
+            r?.media_formats?.tinygif?.url ||
+            r?.media?.[0]?.tinygif?.url ||
+            gifUrl;
+          return {
+            id: String(r?.id ?? crypto.randomUUID()),
+            url: gifUrl || "",
+            preview: tinyUrl || gifUrl || "",
+          };
+        })
+        .filter((i) => i.url);
+      setGifResults(items);
     } catch (e) {
       console.error("Failed to load trending GIFs", e);
       setGifResults([]);
@@ -587,7 +541,7 @@ export default function ChatWindow({
   };
 
   const searchGifs = async (query: string) => {
-    if (!gifProvider) return;
+    if (!klipyKey) return;
     const q = query.trim();
     if (!q) {
       await fetchTrendingGifs();
@@ -595,69 +549,36 @@ export default function ChatWindow({
     }
     setGifLoading(true);
     try {
-      if (gifProvider === "tenor" && tenorKey) {
-        const params = new URLSearchParams({
-          key: tenorKey,
-          q,
-          limit: "24",
-          media_filter: "gif",
-        });
-        const res = await fetch(
-          `https://tenor.googleapis.com/v2/search?${params.toString()}`
-        );
-        const json = (await res
-          .json()
-          .catch(() => null)) as TenorResponse | null;
-        const items: Array<{ id: string; url: string; preview: string }> = (
-          json?.results || []
-        )
-          .map((r: TenorResult) => {
-            const gifUrl: string | undefined =
-              r?.media_formats?.gif?.url || r?.media?.[0]?.gif?.url;
-            const tinyUrl: string | undefined =
-              r?.media_formats?.tinygif?.url ||
-              r?.media?.[0]?.tinygif?.url ||
-              gifUrl;
-            return {
-              id: String(r?.id ?? crypto.randomUUID()),
-              url: gifUrl || "",
-              preview: tinyUrl || gifUrl || "",
-            };
-          })
-          .filter((i) => i.url);
-        setGifResults(items);
-      } else if (gifProvider === "giphy" && giphyKey) {
-        const params = new URLSearchParams({
-          api_key: giphyKey,
-          q,
-          limit: "24",
-          rating: "pg",
-        });
-        const res = await fetch(
-          `https://api.giphy.com/v1/gifs/search?${params.toString()}`
-        );
-        const json = (await res
-          .json()
-          .catch(() => null)) as GiphyResponse | null;
-        const items: Array<{ id: string; url: string; preview: string }> = (
-          json?.data || []
-        )
-          .map((r: GiphyResult) => {
-            const gifUrl: string | undefined =
-              r?.images?.downsized?.url || r?.images?.original?.url;
-            const preview: string | undefined =
-              r?.images?.preview_gif?.url ||
-              r?.images?.downsized_still?.url ||
-              gifUrl;
-            return {
-              id: String(r?.id ?? crypto.randomUUID()),
-              url: gifUrl || "",
-              preview: preview || gifUrl || "",
-            };
-          })
-          .filter((i) => i.url);
-        setGifResults(items);
-      }
+      const params = new URLSearchParams({
+        key: klipyKey,
+        q,
+        limit: "24",
+        media_filter: "gif",
+      });
+      const res = await fetch(
+        `https://api.klipy.com/v2/search?${params.toString()}`
+      );
+      const json = (await res
+        .json()
+        .catch(() => null)) as KlipyResponse | null;
+      const items: Array<{ id: string; url: string; preview: string }> = (
+        json?.results || []
+      )
+        .map((r: KlipyResult) => {
+          const gifUrl: string | undefined =
+            r?.media_formats?.gif?.url || r?.media?.[0]?.gif?.url;
+          const tinyUrl: string | undefined =
+            r?.media_formats?.tinygif?.url ||
+            r?.media?.[0]?.tinygif?.url ||
+            gifUrl;
+          return {
+            id: String(r?.id ?? crypto.randomUUID()),
+            url: gifUrl || "",
+            preview: tinyUrl || gifUrl || "",
+          };
+        })
+        .filter((i) => i.url);
+      setGifResults(items);
     } catch (e) {
       console.error("GIF search failed", e);
       setGifResults([]);
@@ -2488,7 +2409,7 @@ export default function ChatWindow({
                 <span className={styles.mobileInputMenuIcon}>📎</span>
                 <span>Attach File</span>
               </div>
-              {gifProvider && (
+               {klipyKey && (
                 <div
                   className={styles.mobileInputMenuItem}
                   onClick={() => {
@@ -2584,7 +2505,7 @@ export default function ChatWindow({
                 </div>
               )}
             </div>
-            {gifProvider && (
+            {klipyKey && (
               <div className={styles.emojiContainer}>
                 <button
                   type="button"
@@ -2599,7 +2520,7 @@ export default function ChatWindow({
                       await fetchTrendingGifs();
                     }
                   }}
-                  disabled={!gifProvider}
+                  disabled={!klipyKey}
                 >
                   <span className={styles.gifLabel}>GIF</span>
                 </button>
@@ -2648,18 +2569,17 @@ export default function ChatWindow({
           </div>
 
           {/* GIF Picker - Moved outside desktopControls for mobile access */}
-          {gifProvider && (
+          {klipyKey && (
             <div className={styles.gifContainer} ref={gifContainerRef}>
               {showGifPicker && (
                 <div
                   className={styles.gifPopover}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {!gifProvider ? (
+                  {!klipyKey ? (
                     <div className={styles.gifEmpty}>
                       <p>
-                        Configure <code>NEXT_PUBLIC_TENOR_KEY</code> or{" "}
-                        <code>NEXT_PUBLIC_GIPHY_KEY</code> to enable GIF search.
+                        Configure <code>NEXT_PUBLIC_KLIPY_KEY</code> to enable GIF search.
                       </p>
                     </div>
                   ) : (
@@ -2675,9 +2595,7 @@ export default function ChatWindow({
                               await searchGifs(gifQuery);
                             }
                           }}
-                          placeholder={`Search ${
-                            gifProvider === "tenor" ? "Tenor" : "Giphy"
-                          } GIFs...`}
+                          placeholder="Search Klipy GIFs..."
                         />
                         <button
                           type="button"

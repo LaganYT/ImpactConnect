@@ -49,6 +49,7 @@ Create a `.env.local` file in the root directory:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_KLIPY_KEY=your_klipy_api_key  # Optional: for GIF search
 ```
 
 ### 4. Configure Supabase Auth
